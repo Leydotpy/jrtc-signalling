@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-10-27",
+  "files": [
+    {
+      "file": "AGENTS.md",
+      "sha256": "3d60937c76213a427d2b7cb8ade4b604b07b899e0df58af548d2c0d3d8f96a28"
+    },
+    {
+      "file": "EXECUTION_ORDER.md",
+      "sha256": "10de419f0316a8840600735b4c10c0ff989213c7ac26b5f76776d9b189dc0f02"
+    },
+    {
+      "file": "PROGRESS.md",
+      "sha256": "c6019649eb8e3d5f8a12dfdcaaf0e0427c55cec1d035a02b4d8fa87cbe82c05b"
+    },
+    {
+      "file": "README.md",
+      "sha256": "0837ee46e10a45a3188fee8b55c94cc3c5ef4ccf6a2dbfef831e5e0b046f9b36"
+    },
+    {
+      "file": "SOURCE_NOTES.md",
+      "sha256": "7fd86fdee37327b20eb16eae230fd43782090d2a8320baf0c5f60b29b299bc4b"
+    },
+    {
+      "file": "agents/DJANGO.md",
+      "sha256": "d56fb9e65108414754db5d72fa39d937ace12f6bae06ded835e884f2fc67efde"
+    },
+    {
+      "file": "agents/FRONTEND.md",
+      "sha256": "8b4c9235ffb5ee799a3bd0ae59a2ed379630c0f50b564216ea42dc86ba05b6e5"
+    },
+    {
+      "file": "agents/GATEWAY.md",
+      "sha256": "79565ed4c9d52929065b1d6d6842bf97b83705813a9172f19c4b77082b96f27b"
+    },
+    {
+      "file": "agents/JRTC.md",
+      "sha256": "96b179ffc560307d1e749446c27f99260ddc0b2e720eb332e96a82f20c19047f"
+    },
+    {
+      "file": "agents/REPOSITORY_OWNERSHIP.md",
+      "sha256": "a3dc4dc234e82482b50f636efacf35af3fb6442b10179ccddd968dc9c168d7aa"
+    },
+    {
+      "file": "architecture/BOUNDARIES.md",
+      "sha256": "1accf308aef02b81aee8d037635de486a7b022030fbfeb46610d7eb8bef9e97a"
+    },
+    {
+      "file": "checklists/ACCEPTANCE.md",
+      "sha256": "46697a939e3dd5c8493305912387f784a223d2e1a84edc831a1ea422362d566b"
+    },
+    {
+      "file": "contracts/EVENTS.md",
+      "sha256": "d0af896f80bf0d842e5800d84e10565bbf387ca360c2e55704e1698f1498982b"
+    },
+    {
+      "file": "contracts/PROTOCOL.md",
+      "sha256": "a739d73873df44e9bb2ca45956ae2f473033a77e11adeb19edfaebae4b292def"
+    },
+    {
+      "file": "contracts/SECURITY.md",
+      "sha256": "efe29c5970976c4ba46e537c71f7c2ffa40be0ff5a79ea99a8c0479545c1548f"
+    },
+    {
+      "file": "prompts/KICKOFF_AUTONOMOUS.txt",
+      "sha256": "54bc13f47605b4c6a95baa32da0c197a98df6faaa3da2038a585b1b5cb731dd5"
+    },
+    {
+      "file": "prompts/KICKOFF_REVIEW_GATED.txt",
+      "sha256": "82b4518d9ddc34e2f3b3d99022a94d4eda8451a5306774e1b49c1ad5610ae8b6"
+    },
+    {
+      "file": "scripts/tracker.py",
+      "sha256": "d976013eec617b459be8c3f4148c435177fc8d642f6189a6ea6a69f8864b3077"
+    },
+    {
+      "file": "tasks/SG-00_BASELINE.md",
+      "sha256": "7bad532b7945190995658455e60ba57cbd384ff864a0cc7b3a55507785233bd1"
+    },
+    {
+      "file": "tasks/SG-01_CONTRACTS.md",
+      "sha256": "29250de16f0c082824e9813c7cffcd4b3ff6f08e6606ac70ed358116c51c5a3c"
+    },
+    {
+      "file": "tasks/SG-02_SCAFFOLD.md",
+      "sha256": "01438b5f7da49d2567ff30339eb8c8ebd613aa5bec46583d37939a7643bd78a1"
+    },
+    {
+      "file": "tasks/SG-03_TICKETS.md",
+      "sha256": "3f06169a976884ca7b3ca6ae6a10cb52c716cd73c0fd3680102ed948c73c5a2a"
+    },
+    {
+      "file": "tasks/SG-04_GATEWAY_AUTH.md",
+      "sha256": "15f459e003a7389b10c0eddc67bbf8226cf6e067e9a693f3b6bd1f2a5369b9c7"
+    },
+    {
+      "file": "tasks/SG-05_ADMISSION.md",
+      "sha256": "a1ca5ee1bbc90f7ea96846be4b81a63cc511ae28bd75d6a9cd067e14a2f8f04d"
+    },
+    {
+      "file": "tasks/SG-06_BROKA_COMMANDS.md",
+      "sha256": "ffaece598364f7394c87913f310ea674217d37c6aef947b245c0683a91e23176"
+    },
+    {
+      "file": "tasks/SG-07_RUNTIME.md",
+      "sha256": "5a2894cb8f5fbfaca17792961cd32a38f3b7fda0426df052726f20a2f8788872"
+    },
+    {
+      "file": "tasks/SG-08_WEBSOCKET.md",
+      "sha256": "5c1b0983a4a0693847d2ba5f960859b67002722f4ad59d5f45525c9e56022532"
+    },
+    {
+      "file": "tasks/SG-09_ICE_JSEP.md",
+      "sha256": "77acaa6680c36d677e992b29138017a84be0b29889175bee395f5b809d5738fe"
+    },
+    {
+      "file": "tasks/SG-10_LIFECYCLE_EVENTS.md",
+      "sha256": "2924c01a9be6aed3a39439d6a8c9a663150885bbfbc9918a28a10052ad1a641c"
+    },
+    {
+      "file": "tasks/SG-11_STATE_SSE.md",
+      "sha256": "dc0d081dcedb3a5740f29796ddd0b579156bcedf4a32d728b129a5527d88f1fb"
+    },
+    {
+      "file": "tasks/SG-12_FRONTEND.md",
+      "sha256": "e9a36b562bf8d2b5475b28eaae714205194a89c85ddf818fb24c7932eb252307"
+    },
+    {
+      "file": "tasks/SG-13_MODERATION.md",
+      "sha256": "d1bbb50bb9cc838267eac40667140d505e698b5886d136ec2b39c7a6d61da648"
+    },
+    {
+      "file": "tasks/SG-14_RECONNECT.md",
+      "sha256": "ec24ec0c1c1717fb7d9f96d4ae55362af938f277d2f9da9b16229bc4d92bc215"
+    },
+    {
+      "file": "tasks/SG-15_MULTIWORKER.md",
+      "sha256": "125a9eecc4a5e43a928a36bb3ee56a0d59d075aff328f2531e48fedab00abbed"
+    },
+    {
+      "file": "tasks/SG-16_OBSERVABILITY.md",
+      "sha256": "70040c9ad3e5323063bf08aa2edb585fb0b6444f0e71d1d3a12041f4dfbf497f"
+    },
+    {
+      "file": "tasks/SG-17_CUTOVER.md",
+      "sha256": "74a9a3c40f341e6600964bbd463962ebba714a6cc89c3ea7df6c70cbd3f40eee"
+    },
+    {
+      "file": "tasks/SG-18_FINAL_AUDIT.md",
+      "sha256": "7447f735145b49279b3f091bfa9f2d3177e52b324580677fa56d4c3fa4526163"
+    },
+    {
+      "file": "tracking/REPORT_TEMPLATE.md",
+      "sha256": "ae1156f916461e02dd80b209421ad4d41c3bad5a6f0efb46145b8eaba1c63982"
+    },
+    {
+      "file": "tracking/progress.json",
+      "sha256": "1e89610ac9ab440f6132647afaa8e81b5270a0842b1ccd6c36b99d53e0598a29"
+    }
+  ]
+}

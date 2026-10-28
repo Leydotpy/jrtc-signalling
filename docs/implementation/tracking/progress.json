@@ -1,0 +1,250 @@
+{
+  "pack": "synq-signaling-gateway",
+  "created_at": "2026-10-27",
+  "mode": "AUTONOMOUS",
+  "meaning_of_done": "implemented and locally verified; not deployed",
+  "tasks": [
+    {
+      "id": "SG-00",
+      "title": "Cross-repository baseline, branch/ownership audit",
+      "status": "DONE",
+      "dependencies": [],
+      "repos": "all repos",
+      "report": "tracking/reports/SG-00.md",
+      "commits": {},
+      "last_updated": "2026-10-28T09:14:09.842074+00:00"
+    },
+    {
+      "id": "SG-01",
+      "title": "Versioned signaling/command/event compatibility contracts",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-00"
+      ],
+      "repos": "all repos",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-02",
+      "title": "Create separately deployable Python ASGI gateway",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-01"
+      ],
+      "repos": "gateway",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-03",
+      "title": "Django ticket issuance and permissions epoch",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-01"
+      ],
+      "repos": "synq",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-04",
+      "title": "Gateway WS verifier and permission enforcement",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-02",
+        "SG-03"
+      ],
+      "repos": "gateway",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-05",
+      "title": "Django admission/waiting-room decisions",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-03"
+      ],
+      "repos": "synq",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-06",
+      "title": "Reliable command plane and transactional outbox",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-01",
+        "SG-05"
+      ],
+      "repos": "synq + gateway",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-07",
+      "title": "Extract active JRTC session/handle ownership",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-02",
+        "SG-06"
+      ],
+      "repos": "gateway + synq (JRTC only if needed)",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-08",
+      "title": "Browser\u21c4gateway signaling operations",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-04",
+        "SG-07"
+      ],
+      "repos": "gateway",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-09",
+      "title": "Batched ICE, completion, and JSEP ordering",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-08"
+      ],
+      "repos": "gateway + synq.js fixtures",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-10",
+      "title": "Gateway lifecycle events and Django Broka consumer",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-06",
+        "SG-07"
+      ],
+      "repos": "gateway + synq",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-11",
+      "title": "Django projection and frontend state notifications",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-10"
+      ],
+      "repos": "synq",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-12",
+      "title": "Client transport adapter and Django SSE integration",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-08",
+        "SG-09",
+        "SG-11"
+      ],
+      "repos": "synq.js",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-13",
+      "title": "Revocation, denial, kick, and meeting termination",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-06",
+        "SG-08",
+        "SG-11"
+      ],
+      "repos": "synq + gateway",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-14",
+      "title": "Reconnect, resumable sessions, stale event protection",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-09",
+        "SG-12",
+        "SG-13"
+      ],
+      "repos": "gateway + synq.js + synq",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-15",
+      "title": "Gateway owner routing, leases and graceful drain",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-07",
+        "SG-10",
+        "SG-14"
+      ],
+      "repos": "gateway + synq",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-16",
+      "title": "Performance, resilience and instrumentation",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-12",
+        "SG-15"
+      ],
+      "repos": "all applicable",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-17",
+      "title": "Feature-flagged local/staged cutover & rollback",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-13",
+        "SG-15",
+        "SG-16"
+      ],
+      "repos": "synq + synq.js + gateway",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    },
+    {
+      "id": "SG-18",
+      "title": "End-to-end evidence and readiness report",
+      "status": "NOT_STARTED",
+      "dependencies": [
+        "SG-17"
+      ],
+      "repos": "all",
+      "report": null,
+      "commits": {},
+      "last_updated": null
+    }
+  ]
+}

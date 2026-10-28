@@ -1,0 +1,14 @@
+# SG-XX — Task completion report
+- Date (UTC):
+- Status: DONE / BLOCKED / READY_FOR_REVIEW
+- Scope and discovered files/paths:
+- Repo / branch / baseline SHA / final commit SHA (each affected repo):
+- Implementation summary (with file:line evidence):
+- Contract/security decisions:
+- Commands executed and exact results (including environment):
+- Test categories, counts, failures/skips:
+- Compatibility, latency and ICE evidence:
+- Rollback impact:
+- Existing uncommitted changes preserved:
+- Remaining risks/follow-up:
+- Dependency or reviewer notes:
