@@ -1,0 +1,911 @@
+[
+  {
+    "name": "hello",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "session.hello",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "ticket": "fixture-not-a-signed-token"
+      }
+    }
+  },
+  {
+    "name": "resume",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "session.resume",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "ticket": "fixture-not-a-signed-token",
+        "last_sequence": 3
+      }
+    }
+  },
+  {
+    "name": "refresh",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "session.refresh",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "ticket": "fixture-not-a-signed-token"
+      }
+    }
+  },
+  {
+    "name": "ping",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "session.ping",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "publisher-join",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.publisher.join",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "unpublish",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.publisher.unpublish",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "subscriber-join",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.subscriber.join",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "subscriber-sync",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.subscriber.sync",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "subscriber-update",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.subscriber.update",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "subscriber-detach",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.subscriber.detach",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {}
+    }
+  },
+  {
+    "name": "publish",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.publisher.publish",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "offer": {
+          "type": "offer",
+          "sdp": "v=0\r\n"
+        },
+        "tracks": [
+          {
+            "source": "camera",
+            "kind": "video",
+            "mid": "0"
+          }
+        ],
+        "negotiation_id": "negotiation-1"
+      }
+    }
+  },
+  {
+    "name": "configure",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.publisher.configure",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "offer": {
+          "type": "offer",
+          "sdp": "v=0\r\n"
+        },
+        "tracks": [
+          {
+            "source": "camera",
+            "kind": "video",
+            "mid": "0"
+          }
+        ],
+        "negotiation_id": "negotiation-1"
+      }
+    }
+  },
+  {
+    "name": "subscriber-start",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.subscriber.start",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "answer": {
+          "type": "answer",
+          "sdp": "v=0\r\n"
+        },
+        "negotiation_id": "negotiation-2"
+      }
+    }
+  },
+  {
+    "name": "ice-final",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.trickle",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "handle_type": "publisher",
+        "negotiation_id": "negotiation-1",
+        "candidates": [
+          {
+            "candidate": "candidate:1 1 udp 1 192.0.2.1 9 typ host",
+            "sdpMid": "0",
+            "sdpMLineIndex": 0
+          },
+          {
+            "candidate": "candidate:2 1 udp 1 192.0.2.2 9 typ host",
+            "sdpMid": "0",
+            "sdpMLineIndex": 0
+          }
+        ],
+        "completed": true
+      }
+    }
+  },
+  {
+    "name": "ice-restart",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.ice_restart",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "handle_type": "publisher"
+      }
+    }
+  },
+  {
+    "name": "hangup",
+    "schema": "request",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "op": "media.hangup",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "payload": {
+        "handle_type": "subscriber"
+      }
+    }
+  },
+  {
+    "name": "media-ack",
+    "schema": "response",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "generation": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "ok": true,
+      "result": {
+        "action": "join_and_configure",
+        "participant_id": "participant-1",
+        "handle_type": "publisher",
+        "lifecycle_state": "ready",
+        "jsep": {
+          "type": "answer",
+          "sdp": "v=0\r\n"
+        },
+        "streams": [],
+        "selected_streams": [
+          {
+            "feed": "900719925474099312345",
+            "mid": "0",
+            "crossrefid": null,
+            "sub_mid": null
+          }
+        ],
+        "negotiation_id": "negotiation-1"
+      }
+    }
+  },
+  {
+    "name": "error-ack",
+    "schema": "response",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "generation": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "ok": false,
+      "error": {
+        "code": "OUTCOME_UNKNOWN",
+        "message": "Operation outcome is unknown.",
+        "retryable": false
+      }
+    }
+  },
+  {
+    "name": "pong",
+    "schema": "response",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "generation": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "ok": true,
+      "result": {}
+    }
+  },
+  {
+    "name": "ready-ack",
+    "schema": "response",
+    "message": {
+      "version": 1,
+      "id": "request-1",
+      "generation": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "ok": true,
+      "result": {
+        "participant_id": "participant-1",
+        "scopes": [
+          "media:publish",
+          "media:subscribe"
+        ],
+        "authorization_epoch": 7,
+        "gateway_owner_id": "worker-1",
+        "gateway_generation": 4
+      }
+    }
+  },
+  {
+    "name": "notification-session.ready",
+    "schema": "notification",
+    "message": {
+      "version": 1,
+      "event_id": "notification-1",
+      "op": "session.ready",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "payload": {
+        "participant_id": "participant-1",
+        "scopes": [
+          "media:publish",
+          "media:subscribe"
+        ],
+        "authorization_epoch": 7,
+        "gateway_owner_id": "worker-1",
+        "gateway_generation": 4
+      }
+    }
+  },
+  {
+    "name": "notification-session.revoked",
+    "schema": "notification",
+    "message": {
+      "version": 1,
+      "event_id": "notification-1",
+      "op": "session.revoked",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "payload": {
+        "reason_code": "revoked"
+      }
+    }
+  },
+  {
+    "name": "notification-session.reconnect_required",
+    "schema": "notification",
+    "message": {
+      "version": 1,
+      "event_id": "notification-1",
+      "op": "session.reconnect_required",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "payload": {
+        "reason_code": "owner_lost"
+      }
+    }
+  },
+  {
+    "name": "notification-media.jsep",
+    "schema": "notification",
+    "message": {
+      "version": 1,
+      "event_id": "notification-1",
+      "op": "media.jsep",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "payload": {
+        "handle_type": "subscriber",
+        "negotiation_id": "negotiation-2",
+        "jsep": {
+          "type": "offer",
+          "sdp": "v=0\r\n"
+        },
+        "transaction": null
+      }
+    }
+  },
+  {
+    "name": "notification-media.event",
+    "schema": "notification",
+    "message": {
+      "version": 1,
+      "event_id": "notification-1",
+      "op": "media.event",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "payload": {
+        "handle_type": "publisher",
+        "kind": "webrtcup",
+        "janus_handle_id": "9007199254740993"
+      }
+    }
+  },
+  {
+    "name": "notification-error",
+    "schema": "notification",
+    "message": {
+      "version": 1,
+      "event_id": "notification-1",
+      "op": "error",
+      "meeting_id": "meeting-session-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "sequence": 1,
+      "server_time": "2026-10-28T12:00:00Z",
+      "payload": {
+        "code": "UNAVAILABLE",
+        "message": "Service unavailable.",
+        "retryable": true
+      }
+    }
+  },
+  {
+    "name": "admit",
+    "schema": "command",
+    "message": {
+      "schema_version": 1,
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "authorization_epoch": 7,
+      "target_owner": "worker-1",
+      "expected_owner_generation": 4,
+      "issued_at": "2026-10-28T12:00:00Z",
+      "expires_at": "2026-10-28T12:01:00Z",
+      "actor_id": "host-1",
+      "trace_id": "trace-1",
+      "type": "participant.admit",
+      "data": {
+        "grant_id": "grant-1",
+        "scopes": [
+          "media:publish",
+          "media:subscribe"
+        ],
+        "permissions": {
+          "can_publish_audio": true,
+          "can_publish_video": true,
+          "can_share_screen": false,
+          "can_subscribe": true
+        }
+      }
+    }
+  },
+  {
+    "name": "deny",
+    "schema": "command",
+    "message": {
+      "schema_version": 1,
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "authorization_epoch": 7,
+      "target_owner": "worker-1",
+      "expected_owner_generation": 4,
+      "issued_at": "2026-10-28T12:00:00Z",
+      "expires_at": "2026-10-28T12:01:00Z",
+      "actor_id": "host-1",
+      "trace_id": "trace-1",
+      "type": "participant.deny",
+      "data": {
+        "reason_code": "denied"
+      }
+    }
+  },
+  {
+    "name": "disconnect",
+    "schema": "command",
+    "message": {
+      "schema_version": 1,
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "authorization_epoch": 7,
+      "target_owner": "worker-1",
+      "expected_owner_generation": 4,
+      "issued_at": "2026-10-28T12:00:00Z",
+      "expires_at": "2026-10-28T12:01:00Z",
+      "actor_id": "host-1",
+      "trace_id": "trace-1",
+      "type": "participant.disconnect",
+      "data": {
+        "reason_code": "revoked"
+      }
+    }
+  },
+  {
+    "name": "permissions",
+    "schema": "command",
+    "message": {
+      "schema_version": 1,
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "authorization_epoch": 7,
+      "target_owner": "worker-1",
+      "expected_owner_generation": 4,
+      "issued_at": "2026-10-28T12:00:00Z",
+      "expires_at": "2026-10-28T12:01:00Z",
+      "actor_id": "host-1",
+      "trace_id": "trace-1",
+      "type": "participant.permissions.update",
+      "data": {
+        "grant_id": "grant-2",
+        "scopes": [
+          "media:subscribe"
+        ],
+        "permissions": {
+          "can_publish_audio": true,
+          "can_publish_video": true,
+          "can_share_screen": false,
+          "can_subscribe": true
+        }
+      }
+    }
+  },
+  {
+    "name": "terminate",
+    "schema": "command",
+    "message": {
+      "schema_version": 1,
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": null,
+      "participant_session_id": null,
+      "authorization_epoch": 7,
+      "target_owner": "worker-1",
+      "expected_owner_generation": 4,
+      "issued_at": "2026-10-28T12:00:00Z",
+      "expires_at": "2026-10-28T12:01:00Z",
+      "actor_id": "host-1",
+      "trace_id": "trace-1",
+      "type": "meeting.terminate",
+      "data": {
+        "reason_code": "meeting_ended"
+      }
+    }
+  },
+  {
+    "name": "reconcile",
+    "schema": "command",
+    "message": {
+      "schema_version": 1,
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": null,
+      "participant_session_id": null,
+      "authorization_epoch": 7,
+      "target_owner": "worker-1",
+      "expected_owner_generation": 4,
+      "issued_at": "2026-10-28T12:00:00Z",
+      "expires_at": "2026-10-28T12:01:00Z",
+      "actor_id": "host-1",
+      "trace_id": "trace-1",
+      "type": "meeting.reconcile",
+      "data": {
+        "projection_version": 5
+      }
+    }
+  },
+  {
+    "name": "lobby",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.lobby_connected",
+      "data": {}
+    }
+  },
+  {
+    "name": "connecting",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_connecting",
+      "data": {
+        "handle_type": "publisher"
+      }
+    }
+  },
+  {
+    "name": "connected",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_connected",
+      "data": {
+        "media_kind": "audio"
+      }
+    }
+  },
+  {
+    "name": "media-disconnected",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_disconnected",
+      "data": {
+        "reason_code": "transport_lost"
+      }
+    }
+  },
+  {
+    "name": "signaling-disconnected",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.signaling_disconnected",
+      "data": {
+        "reason_code": "transport_lost"
+      }
+    }
+  },
+  {
+    "name": "publishing",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_publishing_changed",
+      "data": {
+        "audio": true,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "removal",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.removal_enforced",
+      "data": {
+        "command_id": "command-1"
+      }
+    }
+  },
+  {
+    "name": "terminated",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": null,
+      "participant_session_id": null,
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "meeting.resources_terminated",
+      "data": {
+        "command_id": "command-2"
+      }
+    }
+  },
+  {
+    "name": "lost",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "gateway.session_lost",
+      "data": {
+        "reason_code": "owner_lost"
+      }
+    }
+  },
+  {
+    "name": "recovery-failed",
+    "schema": "event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "gateway.recovery_failed",
+      "data": {
+        "reason_code": "unavailable"
+      }
+    }
+  },
+  {
+    "name": "outcome",
+    "schema": "command-outcome",
+    "message": {
+      "schema_version": 1,
+      "event_id": "outcome-1",
+      "type": "command.outcome",
+      "command_id": "command-1",
+      "meeting_id": "meeting-session-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "status": "applied",
+      "reason_code": "requested"
+    }
+  },
+  {
+    "name": "lobby-ticket",
+    "schema": "ticket-claims",
+    "message": {
+      "iss": "https://identity.example.test",
+      "aud": "jrtc-signalling",
+      "sub": "profile-1",
+      "jti": "ticket-1",
+      "iat": 1000,
+      "nbf": 1000,
+      "exp": 1120,
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "generation": 1,
+      "authorization_epoch": 7,
+      "scopes": [
+        "lobby"
+      ],
+      "grant_id": "grant-1"
+    }
+  },
+  {
+    "name": "ticket-header",
+    "schema": "ticket-header",
+    "message": {
+      "alg": "RS256",
+      "typ": "JWT",
+      "kid": "key-1"
+    }
+  },
+  {
+    "name": "state-change",
+    "schema": "state-notification",
+    "message": {
+      "schema_version": 1,
+      "event_id": "projection-1",
+      "type": "state.changed",
+      "meeting_id": "meeting-session-1",
+      "projection_version": 8,
+      "previous_version": 7,
+      "participant_ids": [
+        "participant-1"
+      ],
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "context": "live"
+    }
+  }
+]

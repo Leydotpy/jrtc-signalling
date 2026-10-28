@@ -6,7 +6,7 @@ not deployed or approved for production.
 | Task | State | Evidence |
 | --- | --- | --- |
 | SG-00 Baseline | DONE | [Report](tracking/reports/SG-00.md) |
-| SG-01 Contracts | NOT_STARTED | Next task |
+| SG-01 Contracts | DONE | [Report](tracking/reports/SG-01.md) |
 | SG-02 ASGI scaffold | NOT_STARTED | Depends on SG-01 |
 | SG-03 onward | NOT_STARTED | See [dependency order](EXECUTION_ORDER.md) |
 

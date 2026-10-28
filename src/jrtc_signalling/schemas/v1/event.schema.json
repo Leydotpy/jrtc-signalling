@@ -1,0 +1,483 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jrtc-signalling:v1:event",
+  "title": "event",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "type": {
+      "enum": [
+        "participant.lobby_connected",
+        "participant.media_connecting",
+        "participant.media_connected",
+        "participant.media_disconnected",
+        "participant.signaling_disconnected",
+        "participant.media_publishing_changed",
+        "participant.removal_enforced",
+        "meeting.resources_terminated",
+        "gateway.session_lost",
+        "gateway.recovery_failed"
+      ]
+    },
+    "meeting_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "participant_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "participant_session_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "authorization_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "data": {},
+    "gateway_owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "gateway_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "type",
+    "meeting_id",
+    "participant_id",
+    "participant_session_id",
+    "authorization_epoch",
+    "trace_id",
+    "data",
+    "gateway_owner_id",
+    "gateway_generation",
+    "occurred_at",
+    "sequence"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "type": {
+          "const": "participant.lobby_connected"
+        },
+        "data": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "participant.media_connecting"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "handle_type": {
+              "enum": [
+                "publisher",
+                "subscriber"
+              ]
+            }
+          },
+          "required": [
+            "handle_type"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "participant.media_connected"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "media_kind": {
+              "enum": [
+                "audio",
+                "video",
+                "screen",
+                "data"
+              ]
+            }
+          },
+          "required": [
+            "media_kind"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "participant.media_disconnected"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "requested",
+                "denied",
+                "revoked",
+                "meeting_ended",
+                "transport_lost",
+                "expired",
+                "owner_lost",
+                "permission_changed",
+                "unavailable",
+                "timeout",
+                "normal"
+              ]
+            }
+          },
+          "required": [
+            "reason_code"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "participant.signaling_disconnected"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "requested",
+                "denied",
+                "revoked",
+                "meeting_ended",
+                "transport_lost",
+                "expired",
+                "owner_lost",
+                "permission_changed",
+                "unavailable",
+                "timeout",
+                "normal"
+              ]
+            }
+          },
+          "required": [
+            "reason_code"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "participant.media_publishing_changed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "audio": {
+              "type": "boolean"
+            },
+            "video": {
+              "type": "boolean"
+            },
+            "screen": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "audio",
+            "video",
+            "screen"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "participant.removal_enforced"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+            }
+          },
+          "required": [
+            "command_id"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "meeting.resources_terminated"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+            }
+          },
+          "required": [
+            "command_id"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "null"
+        },
+        "participant_session_id": {
+          "type": "null"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "gateway.session_lost"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "requested",
+                "denied",
+                "revoked",
+                "meeting_ended",
+                "transport_lost",
+                "expired",
+                "owner_lost",
+                "permission_changed",
+                "unavailable",
+                "timeout",
+                "normal"
+              ]
+            }
+          },
+          "required": [
+            "reason_code"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "gateway.recovery_failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "requested",
+                "denied",
+                "revoked",
+                "meeting_ended",
+                "transport_lost",
+                "expired",
+                "owner_lost",
+                "permission_changed",
+                "unavailable",
+                "timeout",
+                "normal"
+              ]
+            }
+          },
+          "required": [
+            "reason_code"
+          ],
+          "additionalProperties": false
+        },
+        "participant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        },
+        "participant_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+        }
+      }
+    }
+  ]
+}

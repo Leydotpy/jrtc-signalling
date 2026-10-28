@@ -11,20 +11,22 @@
       "dependencies": [],
       "repos": "all repos",
       "report": "tracking/reports/SG-00.md",
-      "commits": {},
-      "last_updated": "2026-10-28T09:14:09.842074+00:00"
+      "commits": {
+        "Leydotpy/jrtc-signalling": "5cde8793030630795e83f39bf3b84c4635678120"
+      },
+      "last_updated": "2026-10-28T09:17:25.629235+00:00"
     },
     {
       "id": "SG-01",
       "title": "Versioned signaling/command/event compatibility contracts",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "dependencies": [
         "SG-00"
       ],
       "repos": "all repos",
-      "report": null,
+      "report": "tracking/reports/SG-01.md",
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-28T09:27:00.276561+00:00"
     },
     {
       "id": "SG-02",
