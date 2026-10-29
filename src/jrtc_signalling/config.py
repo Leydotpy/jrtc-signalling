@@ -3,6 +3,7 @@
 import math
 import os
 import re
+import ssl
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -23,6 +24,9 @@ class Settings:
     websocket_ping_interval: float = 25.0
     websocket_ping_timeout: float = 20.0
     log_level: str = "info"
+    auth_config_file: str = ""
+    tls_cert_file: str = ""
+    tls_key_file: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.host, str) or not re.fullmatch(r"[A-Za-z0-9.:-]{1,253}", self.host):
@@ -56,6 +60,21 @@ class Settings:
         # Debug/trace websocket logs may contain credentials or frames.
         if self.log_level not in {"info", "warning", "error", "critical"}:
             raise ConfigurationError("Invalid LOG_LEVEL.")
+        if not isinstance(self.auth_config_file, str) or len(self.auth_config_file) > 4096:
+            raise ConfigurationError("Invalid AUTH_CONFIG_FILE.")
+        if any(
+            not isinstance(path, str) or len(path) > 4096
+            for path in (self.tls_cert_file, self.tls_key_file)
+        ):
+            raise ConfigurationError("Invalid TLS configuration.")
+        if bool(self.tls_cert_file) != bool(self.tls_key_file):
+            raise ConfigurationError("Both TLS_CERT_FILE and TLS_KEY_FILE are required.")
+        if self.tls_cert_file:
+            try:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                context.load_cert_chain(self.tls_cert_file, self.tls_key_file, password="")
+            except (OSError, ValueError):
+                raise ConfigurationError("Invalid TLS certificate or key.") from None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -72,6 +91,9 @@ class Settings:
             "WS_PING_INTERVAL",
             "WS_PING_TIMEOUT",
             "LOG_LEVEL",
+            "AUTH_CONFIG_FILE",
+            "TLS_CERT_FILE",
+            "TLS_KEY_FILE",
         }
         if any(key.startswith(prefix) and key.removeprefix(prefix) not in known for key in env):
             raise ConfigurationError("Unknown JRTC_SIGNALLING configuration field.")
@@ -87,6 +109,9 @@ class Settings:
                 websocket_ping_interval=float(env.get(prefix + "WS_PING_INTERVAL", "25")),
                 websocket_ping_timeout=float(env.get(prefix + "WS_PING_TIMEOUT", "20")),
                 log_level=env.get(prefix + "LOG_LEVEL", "info"),
+                auth_config_file=env.get(prefix + "AUTH_CONFIG_FILE", ""),
+                tls_cert_file=env.get(prefix + "TLS_CERT_FILE", ""),
+                tls_key_file=env.get(prefix + "TLS_KEY_FILE", ""),
             )
         except (ValueError, TypeError):
             raise ConfigurationError(

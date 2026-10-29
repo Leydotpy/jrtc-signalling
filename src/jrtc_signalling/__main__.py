@@ -16,6 +16,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         settings = Settings.from_env()
+        app = create_app(settings)
     except ConfigurationError as exc:
         print(str(exc), file=sys.stderr)
         raise SystemExit(2) from None
@@ -23,7 +24,7 @@ def main() -> None:
         print("Configuration valid. Signalling remains disabled until integration is complete.")
         return
     uvicorn.run(
-        create_app(settings),
+        app,
         host=settings.host,
         port=settings.port,
         lifespan="on",
@@ -36,6 +37,8 @@ def main() -> None:
         timeout_graceful_shutdown=int(settings.shutdown_timeout) + 1,
         access_log=False,
         proxy_headers=False,
+        ssl_certfile=settings.tls_cert_file or None,
+        ssl_keyfile=settings.tls_key_file or None,
         log_config=log_config(settings.log_level),
     )
 

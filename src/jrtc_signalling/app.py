@@ -10,16 +10,23 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
+from .auth import AuthConfig, Authority, HTTPAuthority
 from .config import Settings
 from .runtime import DependencyHealth, Lifecycle, Runtime, ScaffoldRuntime
+from .websocket_auth import AuthenticatedEndpoint
 
 
 def create_app(
     settings: Settings | None = None,
     *,
     runtime_factory: Callable[[], Runtime] = ScaffoldRuntime,
+    auth_config: AuthConfig | None = None,
+    authority_factory: Callable[[AuthConfig], Authority] = HTTPAuthority,
 ) -> Starlette:
     selected = settings if settings is not None else Settings.from_env()
+    authentication = auth_config
+    if authentication is None and selected.auth_config_file:
+        authentication = AuthConfig.read(selected.auth_config_file)
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
@@ -27,9 +34,18 @@ def create_app(
         app.state.lifecycle = lifecycle
         await lifecycle.start()
         try:
+            if authentication is not None:
+                app.state.auth_endpoint = AuthenticatedEndpoint(
+                    authentication, selected, authority_factory(authentication)
+                )
             yield
         finally:
-            await lifecycle.stop()
+            try:
+                if app.state.auth_endpoint is not None:
+                    await app.state.auth_endpoint.aclose()
+            finally:
+                app.state.auth_endpoint = None
+                await lifecycle.stop()
 
     def snapshot(request: Request) -> dict[str, Any]:
         lifecycle: Lifecycle | None = request.app.state.lifecycle
@@ -61,6 +77,11 @@ def create_app(
         )
 
     async def websocket_unavailable(websocket: WebSocket) -> None:
+        endpoint: AuthenticatedEndpoint | None = websocket.app.state.auth_endpoint
+        lifecycle: Lifecycle | None = websocket.app.state.lifecycle
+        if endpoint is not None and lifecycle is not None and lifecycle.phase == "running":
+            await endpoint(websocket)
+            return
         if "websocket.http.response" in websocket.scope.get("extensions", {}):
             await websocket.send_denial_response(
                 JSONResponse(
@@ -84,4 +105,5 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.lifecycle = None
+    app.state.auth_endpoint = None
     return app

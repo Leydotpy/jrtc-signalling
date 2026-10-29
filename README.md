@@ -5,15 +5,16 @@ for identity, admission, roles and revocation. JRTC and VideoRoom will manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-SG-00 baseline, SG-01 versioned contracts and SG-02 standalone scaffold are
-implemented. **Live signalling is not enabled.** Every WebSocket is rejected;
-readiness remains 503 until ticket verification, authoritative grants, durable
-commands and exclusive JRTC ownership are integrated. Existing Django/browser
-signalling remains unchanged.
+SG-00–SG-04 provide the service scaffold, wire contracts, Django ticket authority
+and gateway authentication. **Live media signalling is not enabled.** Authenticated
+control sessions can be rehearsed with explicit TLS/auth configuration; readiness
+remains 503 until durable commands and exclusive JRTC ownership are integrated.
+Existing Django/browser signalling remains unchanged.
 
 See [progress and blockers](docs/implementation/PROGRESS.md),
 [v1 protocol and compatibility map](docs/PROTOCOL.md),
-[ticket security contract](docs/SECURITY.md) and the
+[ticket security contract](docs/SECURITY.md),
+[authentication setup](docs/AUTHENTICATION.md) and the
 [instruction pack](docs/implementation/README.md).
 
 ## Run locally
@@ -38,7 +39,7 @@ There is deliberately no environment switch to enable unimplemented media access
 | GET /health/live | 200 while running/draining | process liveness |
 | GET /health/ready | 503, dependencies and signalling=disabled | traffic readiness |
 | GET /health | same as readiness | aggregate status |
-| WS /ws | HTTP 503 before upgrade, or pre-accept policy close | reserved signalling route |
+| WS /ws | Disabled by default; configured WSS accepts authenticated control sessions | authentication rehearsal |
 
 The gateway reports Janus, Broka, authority and ownership independently.
 No real connections are made by ScaffoldRuntime. Instance UUIDs are diagnostic;
@@ -62,10 +63,10 @@ uv build
 ```
 
 Tests cover wire compatibility, invalid inputs, lifecycle failures/cancellation,
-dependency degradation, configuration, log redaction, a real loopback HTTP/WS
-process, and SIGTERM. GitHub Actions runs Python 3.12/3.13/3.14 checks and a
-container build/smoke test. These are scaffold checks, not live Janus/Broka or
-browser-media acceptance.
+dependency degradation, configuration, log redaction, real HTTP/HTTPS/WS/WSS processes,
+and SIGTERM. Signature/origin/replay/refresh/revocation and bounded authority tests
+cover SG-04. GitHub Actions runs Python 3.12/3.13/3.14, container smoke and a pinned
+Synq issuer/authority handoff check. Live Janus/Broka/browser-media acceptance remains later work.
 
 ## Local container
 
@@ -82,7 +83,6 @@ deployment has been created.
 
 ## Next dependency
 
-SG-03 belongs to `Leydotpy/synq`: issue scoped tickets and persist authoritative
-grant/authorization epochs. SG-04 depends on that task and SG-02. Continue using
-the [task order](docs/implementation/EXECUTION_ORDER.md); do not substitute a
-self-issued gateway ticket or mock grants to bypass the dependency.
+SG-05 adds the gateway admission/outbox path in Synq; SG-06 delivers durable
+commands, followed by SG-07/08 runtime ownership and media dispatch. Follow the
+[task order](docs/implementation/EXECUTION_ORDER.md).
