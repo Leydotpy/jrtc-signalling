@@ -1,0 +1,18 @@
+services:
+  gateway:
+    build: .
+    image: jrtc-signalling:dev
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      JRTC_SIGNALLING_HOST: "0.0.0.0"
+      JRTC_SIGNALLING_PORT: "8765"
+      JRTC_SIGNALLING_SHUTDOWN_TIMEOUT: "10"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s

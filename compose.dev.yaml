@@ -1,0 +1,7 @@
+# Use with compose.yaml; restart gateway to load local source changes.
+services:
+  gateway:
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      PYTHONPATH: /app/src

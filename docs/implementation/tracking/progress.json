@@ -25,20 +25,22 @@
       ],
       "repos": "all repos",
       "report": "tracking/reports/SG-01.md",
-      "commits": {},
-      "last_updated": "2026-10-28T09:27:00.276561+00:00"
+      "commits": {
+        "Leydotpy/jrtc-signalling": "362e7ff3521023409f9ec29e4de38ab55aa74f95"
+      },
+      "last_updated": "2026-10-28T09:30:02.656614+00:00"
     },
     {
       "id": "SG-02",
       "title": "Create separately deployable Python ASGI gateway",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-01"
       ],
       "repos": "gateway",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-28T09:30:02.686901+00:00"
     },
     {
       "id": "SG-03",

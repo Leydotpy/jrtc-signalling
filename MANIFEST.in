@@ -1,0 +1,4 @@
+include uv.lock .python-version .env.example
+recursive-include tests *.py *.json
+recursive-include scripts *.py
+recursive-include docs *.md *.json *.txt
