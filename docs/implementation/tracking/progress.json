@@ -33,26 +33,28 @@
     {
       "id": "SG-02",
       "title": "Create separately deployable Python ASGI gateway",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-01"
       ],
       "repos": "gateway",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-10-28T09:30:02.686901+00:00"
+      "report": "tracking/reports/SG-02.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "b0aae66c50c7fa3becf954ab875f842b1000d886"
+      },
+      "last_updated": "2026-10-29T06:57:45.292041+00:00"
     },
     {
       "id": "SG-03",
       "title": "Django ticket issuance and permissions epoch",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "dependencies": [
         "SG-01"
       ],
       "repos": "synq",
-      "report": null,
+      "report": "tracking/reports/SG-03.md",
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-29T06:57:45.321513+00:00"
     },
     {
       "id": "SG-04",
