@@ -47,19 +47,21 @@
     {
       "id": "SG-03",
       "title": "Django ticket issuance and permissions epoch",
-      "status": "BLOCKED",
+      "status": "DONE",
       "dependencies": [
         "SG-01"
       ],
       "repos": "synq",
       "report": "tracking/reports/SG-03.md",
-      "commits": {},
-      "last_updated": "2026-10-29T06:57:45.321513+00:00"
+      "commits": {
+        "Leydotpy/synq": "0426eee3497f35cdd37f9725a352c9fef11014f2"
+      },
+      "last_updated": "2026-10-29T07:23:31.707405+00:00"
     },
     {
       "id": "SG-04",
       "title": "Gateway WS verifier and permission enforcement",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-02",
         "SG-03"
@@ -67,7 +69,7 @@
       "repos": "gateway",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-29T07:23:31.744382+00:00"
     },
     {
       "id": "SG-05",
