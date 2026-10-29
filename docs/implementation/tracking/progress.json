@@ -61,27 +61,29 @@
     {
       "id": "SG-04",
       "title": "Gateway WS verifier and permission enforcement",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-02",
         "SG-03"
       ],
       "repos": "gateway",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-10-29T07:23:31.744382+00:00"
+      "report": "tracking/reports/SG-04.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "a1b5de07ed7e552f1202114c185e239dd9387e41"
+      },
+      "last_updated": "2026-10-29T22:16:10.851902+00:00"
     },
     {
       "id": "SG-05",
       "title": "Django admission/waiting-room decisions",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-03"
       ],
       "repos": "synq",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-29T22:16:10.897486+00:00"
     },
     {
       "id": "SG-06",

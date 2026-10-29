@@ -11,8 +11,9 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-01 Contracts | DONE | [Report](tracking/reports/SG-01.md), `362e7ff3521023409f9ec29e4de38ab55aa74f95` |
 | SG-02 ASGI scaffold | DONE | [Report](tracking/reports/SG-02.md), `b0aae66c50c7fa3becf954ab875f842b1000d886` |
 | SG-03 Django ticket issuer | DONE | [Report](tracking/reports/SG-03.md), Synq `0426eee3497f35cdd37f9725a352c9fef11014f2` |
-| SG-04 Gateway authentication | IN_PROGRESS | Code and local verification complete; commit/CI report follows |
-| SG-05–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-04 Gateway authentication | DONE | [Report](tracking/reports/SG-04.md), `a1b5de07ed7e552f1202114c185e239dd9387e41` |
+| SG-05 Admission/outbox | IN_PROGRESS | Synq control-plane branch |
+| SG-06–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
 
@@ -29,10 +30,10 @@ smoke checks. This is scaffold verification, not live Janus/Broka or browser med
 
 The standalone service runs, validates wire contracts, exposes health probes and
 owns its lifecycle. Synq issues signed scoped tickets with shared replay state and
-permission epochs. Gateway authentication is implemented and being verified.
+permission epochs. Gateway authentication passes 273 tests, the Django handoff and all five CI jobs.
 Media stays disabled; readiness is 503. Durable commands, exclusive JRTC ownership,
 live media, event projection and browser routing remain later tasks.
 
 SG-03 PostgreSQL CI: 129 passed, including replay/revocation races; see its report.
-Next: complete SG-04 verification/report, then SG-05 Django admission and outbox.
+Next: SG-05 Django admission and outbox.
 No production routing or deployment has changed.
