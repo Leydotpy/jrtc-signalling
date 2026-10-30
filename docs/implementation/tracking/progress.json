@@ -91,15 +91,18 @@
     {
       "id": "SG-06",
       "title": "Reliable command plane and transactional outbox",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-01",
         "SG-05"
       ],
       "repos": "synq + gateway",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-10-30T06:38:59.034136+00:00"
+      "report": "tracking/reports/SG-06.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "8feab34f5d6d113888833afe157e32363ebd773d",
+        "Leydotpy/synq": "088fd3adee2a20e9a0b3cbeae0477930f4f35939"
+      },
+      "last_updated": "2026-10-30T14:55:11.039524+00:00"
     },
     {
       "id": "SG-07",

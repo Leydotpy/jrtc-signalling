@@ -187,10 +187,10 @@ def main():
             MeetingLifecycleService.leave_participant(session=self.session, profile=second_guest)
             MeetingLifecycleService.end_session(session=self.session, actor_profile=self.host)
             records = list(GatewayAuthorizationOutbox.objects.all())
-            self.assertEqual(len(records), 5)
+            self.assertEqual(len(records), 6)
             self.assertEqual(
                 {record.action for record in records},
-                set(COMMAND_DATA) - {"meeting.terminate", "meeting.reconcile"},
+                set(COMMAND_DATA) - {"meeting.reconcile"},
             )
             for record in records:
                 Draft202012Validator(COMMAND_DATA[record.action]).validate(record.data)

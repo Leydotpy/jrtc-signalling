@@ -5,17 +5,18 @@ for identity, admission, roles and revocation. JRTC and VideoRoom will manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-SG-00–SG-05 provide the service scaffold, wire contracts, Django ticket/admission
-authority, a durable permission outbox and gateway authentication.
+SG-00–SG-06 provide the service scaffold, wire contracts, Django ticket/admission
+authority, gateway authentication and durable signed command/outcome delivery.
 **Live media signalling is not enabled.** Authenticated
 control sessions can be rehearsed with explicit TLS/auth configuration; readiness
-remains 503 until durable commands and exclusive JRTC ownership are integrated.
+remains 503 until exclusive JRTC ownership and media dispatch are integrated.
 Existing Django/browser signalling remains unchanged.
 
 See [progress and blockers](docs/implementation/PROGRESS.md),
 [v1 protocol and compatibility map](docs/PROTOCOL.md),
 [ticket security contract](docs/SECURITY.md),
-[authentication setup](docs/AUTHENTICATION.md) and the
+[authentication setup](docs/AUTHENTICATION.md),
+[command delivery setup](docs/COMMAND_PLANE.md) and the
 [instruction pack](docs/implementation/README.md).
 
 ## Run locally
@@ -67,9 +68,12 @@ Tests cover wire compatibility, invalid inputs, lifecycle failures/cancellation,
 dependency degradation, configuration, log redaction, real HTTP/HTTPS/WS/WSS processes,
 and SIGTERM. Signature/origin/replay/refresh/revocation and bounded authority tests
 cover SG-04. GitHub Actions runs Python 3.12/3.13/3.14, container smoke and a pinned
-Synq issuer/admission/authority handoff and outbox payload checks. Synq's SG-05
-PostgreSQL suite verifies admission/revocation races and transactional outbox writes.
-Live Janus/Broka/browser-media acceptance remains later work.
+Synq issuer/admission/authority handoff and all five outbox command payload checks.
+SG-06 adds real Redis delivery, reclaim/restart, bounded consumers and signed
+outcome checks. Synq's PostgreSQL/Redis suite verifies transactional outbox writes,
+concurrent claims, revocation races and a broker outage/retry through the gateway
+and real Django authority endpoint. Live Janus/browser-media acceptance remains
+later work.
 
 ## Local container
 
@@ -86,6 +90,7 @@ deployment has been created.
 
 ## Next dependency
 
-SG-06 delivers the committed permission intents as durable authenticated commands,
-followed by SG-07/08 runtime ownership and media dispatch. Follow the
+SG-07 supplies exclusive JRTC runtime ownership and generation fencing; SG-08 adds
+media dispatch. The current command enforcer reports failed/owner_lost until that
+runtime exists. Follow the
 [task order](docs/implementation/EXECUTION_ORDER.md).
