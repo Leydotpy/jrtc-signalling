@@ -5,8 +5,9 @@ for identity, admission, roles and revocation. JRTC and VideoRoom will manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-SG-00–SG-04 provide the service scaffold, wire contracts, Django ticket authority
-and gateway authentication. **Live media signalling is not enabled.** Authenticated
+SG-00–SG-05 provide the service scaffold, wire contracts, Django ticket/admission
+authority, a durable permission outbox and gateway authentication.
+**Live media signalling is not enabled.** Authenticated
 control sessions can be rehearsed with explicit TLS/auth configuration; readiness
 remains 503 until durable commands and exclusive JRTC ownership are integrated.
 Existing Django/browser signalling remains unchanged.
@@ -54,8 +55,8 @@ logs. Ingress/proxy logging must independently omit credentials and query string
 ## Verification
 
 ```sh
-uv run ruff check src tests scripts/export_schemas.py
-uv run ruff format --check src tests scripts/export_schemas.py
+uv run ruff check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run ruff format --check src tests scripts/export_schemas.py scripts/check_django_authority.py
 uv run mypy
 uv run python scripts/export_schemas.py --check
 uv run pytest -q
@@ -66,7 +67,9 @@ Tests cover wire compatibility, invalid inputs, lifecycle failures/cancellation,
 dependency degradation, configuration, log redaction, real HTTP/HTTPS/WS/WSS processes,
 and SIGTERM. Signature/origin/replay/refresh/revocation and bounded authority tests
 cover SG-04. GitHub Actions runs Python 3.12/3.13/3.14, container smoke and a pinned
-Synq issuer/authority handoff check. Live Janus/Broka/browser-media acceptance remains later work.
+Synq issuer/admission/authority handoff and outbox payload checks. Synq's SG-05
+PostgreSQL suite verifies admission/revocation races and transactional outbox writes.
+Live Janus/Broka/browser-media acceptance remains later work.
 
 ## Local container
 
@@ -83,6 +86,6 @@ deployment has been created.
 
 ## Next dependency
 
-SG-05 adds the gateway admission/outbox path in Synq; SG-06 delivers durable
-commands, followed by SG-07/08 runtime ownership and media dispatch. Follow the
+SG-06 delivers the committed permission intents as durable authenticated commands,
+followed by SG-07/08 runtime ownership and media dispatch. Follow the
 [task order](docs/implementation/EXECUTION_ORDER.md).

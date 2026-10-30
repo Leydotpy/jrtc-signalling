@@ -76,14 +76,17 @@
     {
       "id": "SG-05",
       "title": "Django admission/waiting-room decisions",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-03"
       ],
       "repos": "synq",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-10-29T22:16:10.897486+00:00"
+      "report": "tracking/reports/SG-05.md",
+      "commits": {
+        "Leydotpy/synq": "8000bc062579b760fb373387d5945243a568ea59",
+        "Leydotpy/jrtc-signalling": "c2815c95eddaeef6594de6ffa0fe452107fdae36"
+      },
+      "last_updated": "2026-10-30T06:28:41.060243+00:00"
     },
     {
       "id": "SG-06",
