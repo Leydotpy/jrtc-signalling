@@ -62,9 +62,21 @@ async def test_real_broka_delivery_duplicate_restart_and_signed_failed_outcome(b
         received.clear()
         runtime = CommandRuntime(config)
         runtime.consumer.authority = SimpleNamespace(check=async_true)
+        duplicate_handled = asyncio.Event()
+        handle = runtime.consumer.handle
+
+        async def track_duplicate(message):
+            await handle(message)
+            if runtime.consumer.counters["duplicate"]:
+                duplicate_handled.set()
+
+        runtime.consumer.handle = track_duplicate
         await runtime.start()
         await pub.publish(route, packet, bus_case.command["command_id"])
         await asyncio.wait_for(received.wait(), 10)
+        # A persisted outcome can be replayed by restart recovery before the
+        # duplicate input reaches its ACK. Await both independent operations.
+        await asyncio.wait_for(duplicate_handled.wait(), 10)
         assert {x["event_id"] for x in outcomes} == first_ids
         assert runtime.consumer.counters["duplicate"] == 1
     finally:
