@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import Any
 
 from starlette.applications import Starlette
@@ -11,7 +12,7 @@ from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
 from .auth import AuthConfig, Authority, HTTPAuthority
-from .config import Settings
+from .config import ConfigurationError, Settings
 from .runtime import DependencyHealth, Lifecycle, Runtime, ScaffoldRuntime
 from .websocket_auth import AuthenticatedEndpoint
 
@@ -19,7 +20,7 @@ from .websocket_auth import AuthenticatedEndpoint
 def create_app(
     settings: Settings | None = None,
     *,
-    runtime_factory: Callable[[], Runtime] = ScaffoldRuntime,
+    runtime_factory: Callable[[], Runtime] | None = None,
     auth_config: AuthConfig | None = None,
     authority_factory: Callable[[AuthConfig], Authority] = HTTPAuthority,
 ) -> Starlette:
@@ -27,10 +28,22 @@ def create_app(
     authentication = auth_config
     if authentication is None and selected.auth_config_file:
         authentication = AuthConfig.read(selected.auth_config_file)
+    factory: Callable[[], Runtime] = runtime_factory or ScaffoldRuntime
+    if runtime_factory is None and selected.bus_config_file:
+        try:
+            from .bus import BusConfig
+            from .commands import CommandRuntime
+
+            bus_config = BusConfig.read(selected.bus_config_file, gateway=True)
+            factory = partial(CommandRuntime, bus_config)
+        except (ValueError, ImportError):
+            raise ConfigurationError(
+                "Invalid command-plane configuration or missing bus extra."
+            ) from None
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
-        lifecycle = Lifecycle(runtime_factory(), selected)
+        lifecycle = Lifecycle(factory(), selected)
         app.state.lifecycle = lifecycle
         await lifecycle.start()
         try:

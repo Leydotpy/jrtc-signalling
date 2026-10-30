@@ -91,7 +91,7 @@
     {
       "id": "SG-06",
       "title": "Reliable command plane and transactional outbox",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-01",
         "SG-05"
@@ -99,7 +99,7 @@
       "repos": "synq + gateway",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-30T06:38:59.034136+00:00"
     },
     {
       "id": "SG-07",

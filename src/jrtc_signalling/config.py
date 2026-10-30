@@ -25,6 +25,7 @@ class Settings:
     websocket_ping_timeout: float = 20.0
     log_level: str = "info"
     auth_config_file: str = ""
+    bus_config_file: str = ""
     tls_cert_file: str = ""
     tls_key_file: str = ""
 
@@ -62,6 +63,8 @@ class Settings:
             raise ConfigurationError("Invalid LOG_LEVEL.")
         if not isinstance(self.auth_config_file, str) or len(self.auth_config_file) > 4096:
             raise ConfigurationError("Invalid AUTH_CONFIG_FILE.")
+        if not isinstance(self.bus_config_file, str) or len(self.bus_config_file) > 4096:
+            raise ConfigurationError("Invalid BUS_CONFIG_FILE.")
         if any(
             not isinstance(path, str) or len(path) > 4096
             for path in (self.tls_cert_file, self.tls_key_file)
@@ -92,6 +95,7 @@ class Settings:
             "WS_PING_TIMEOUT",
             "LOG_LEVEL",
             "AUTH_CONFIG_FILE",
+            "BUS_CONFIG_FILE",
             "TLS_CERT_FILE",
             "TLS_KEY_FILE",
         }
@@ -110,6 +114,7 @@ class Settings:
                 websocket_ping_timeout=float(env.get(prefix + "WS_PING_TIMEOUT", "20")),
                 log_level=env.get(prefix + "LOG_LEVEL", "info"),
                 auth_config_file=env.get(prefix + "AUTH_CONFIG_FILE", ""),
+                bus_config_file=env.get(prefix + "BUS_CONFIG_FILE", ""),
                 tls_cert_file=env.get(prefix + "TLS_CERT_FILE", ""),
                 tls_key_file=env.get(prefix + "TLS_KEY_FILE", ""),
             )

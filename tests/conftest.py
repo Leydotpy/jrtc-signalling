@@ -1,11 +1,17 @@
 import time
 import uuid
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from uuid import uuid4
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from jrtc_signalling.auth import AuthConfig, AuthError, Grant
+from jrtc_signalling.bus import BusConfig, Signer, TrustedKey, Verifier
+from jrtc_signalling.command_store import CommandStore
 
 
 @pytest.fixture(scope="session")
@@ -80,3 +86,37 @@ class FakeAuthority:
 @pytest.fixture
 def authority():
     return FakeAuthority()
+
+
+@pytest.fixture
+def bus_case(tmp_path):
+    django, worker = Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()
+    signer = Signer("django-control", "django-key", django)
+    config = BusConfig(
+        "redis://127.0.0.1:6379/15",
+        Signer("owner-1", "owner-key", worker),
+        Verifier({"django-key": TrustedKey("django-control", django.public_key())}),
+        str(tmp_path / "inbox.sqlite3"),
+        "https://synq.example/internal/authorize/",
+        "x" * 32,
+    )
+    now = time.time()
+    command = {
+        "schema_version": 1,
+        "command_id": str(uuid4()),
+        "type": "participant.disconnect",
+        "meeting_id": str(uuid4()),
+        "participant_id": str(uuid4()),
+        "participant_session_id": str(uuid4()),
+        "authorization_epoch": 2,
+        "target_owner": "owner-1",
+        "expected_owner_generation": 3,
+        "issued_at": datetime.fromtimestamp(now, UTC).isoformat(),
+        "expires_at": datetime.fromtimestamp(now + 60, UTC).isoformat(),
+        "actor_id": str(uuid4()),
+        "trace_id": str(uuid4()),
+        "data": {"reason_code": "revoked"},
+    }
+    store = CommandStore(config.inbox_path)
+    store.initialize()
+    return SimpleNamespace(signer=signer, config=config, command=command, now=now, store=store)

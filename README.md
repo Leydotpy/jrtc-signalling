@@ -23,7 +23,7 @@ See [progress and blockers](docs/implementation/PROGRESS.md),
 Python 3.12–3.14 and uv 0.13.4:
 
 ```sh
-uv sync --locked --group dev
+uv sync --locked --group dev --extra bus
 uv run jrtc-signalling --check-config
 uv run jrtc-signalling
 ```
@@ -55,11 +55,11 @@ logs. Ingress/proxy logging must independently omit credentials and query string
 ## Verification
 
 ```sh
-uv run ruff check src tests scripts/export_schemas.py scripts/check_django_authority.py
-uv run ruff format --check src tests scripts/export_schemas.py scripts/check_django_authority.py
-uv run mypy
+uv run --extra bus ruff check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run --extra bus ruff format --check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run --extra bus mypy
 uv run python scripts/export_schemas.py --check
-uv run pytest -q
+uv run --extra bus pytest -q
 uv build
 ```
 
