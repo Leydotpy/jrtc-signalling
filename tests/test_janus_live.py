@@ -139,9 +139,9 @@ async def test_real_janus_session_management_and_unique_handle_disposal(live_run
     room = secrets.randbelow(2**40) + 1
     await runtime.management(meeting, 1, "create", VideoRoomCreateRequest(room=room, publishers=4))
     try:
-        await runtime.management(meeting, 1, "list")
+        await runtime.management(meeting, 1, "list_rooms")
         service = next(iter(runtime.services.values()))
-        await runtime.management(meeting, 1, "list")
+        await runtime.management(meeting, 1, "list_rooms")
         assert next(iter(runtime.services.values())) is service
         participant, connection = str(uuid4()), str(uuid4())
         refs = await asyncio.gather(
@@ -163,7 +163,7 @@ async def test_real_janus_session_management_and_unique_handle_disposal(live_run
 
 async def test_real_janus_loss_recovery_uses_fresh_session_and_handle(live_runtime):
     runtime, server, meeting = live_runtime
-    await runtime.management(meeting, 1, "list")
+    await runtime.management(meeting, 1, "list_rooms")
     old_service = next(iter(runtime.services.values()))
     ref = await runtime.registry.attach(meeting, str(uuid4()), str(uuid4()), "publisher", 1)
     old_session = runtime.session(meeting)
@@ -187,6 +187,6 @@ async def test_real_janus_loss_recovery_uses_fresh_session_and_handle(live_runti
         meeting, ref.participant_id, ref.participant_session_id, "publisher", 1
     )
     assert new.token != ref.token and new.janus_session_id != ref.janus_session_id
-    await runtime.management(meeting, 1, "list")
+    await runtime.management(meeting, 1, "list_rooms")
     assert any(service is not old_service for service in runtime.services.values())
     assert runtime.manager.metrics["recoveries_completed"] >= 1

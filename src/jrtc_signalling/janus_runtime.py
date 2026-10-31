@@ -336,7 +336,7 @@ class JanusRuntime:
         self, meeting: str, generation: int, method: str, *args: Any, **kwargs: Any
     ) -> Any:
         # Internal adapter, never a client-controlled arbitrary method dispatcher.
-        if method not in {"exists", "list", "create", "destroy", "list_participants"}:
+        if method not in {"exists", "list_rooms", "create", "destroy", "list_participants"}:
             raise OwnershipError("Unsupported management operation.")
         async with self.registry.locks[meeting]:
             deadline = self.require(meeting, generation)
