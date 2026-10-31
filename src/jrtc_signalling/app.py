@@ -36,6 +36,11 @@ def create_app(
 
             bus_config = BusConfig.read(selected.bus_config_file, gateway=True)
             factory = partial(CommandRuntime, bus_config)
+            if selected.runtime_config_file:
+                from .janus_runtime import JanusConfig, JanusRuntime
+
+                janus_config = JanusConfig.read(selected.runtime_config_file)
+                factory = partial(JanusRuntime, bus_config, janus_config)
         except (ValueError, ImportError):
             raise ConfigurationError(
                 "Invalid command-plane configuration or missing bus extra."

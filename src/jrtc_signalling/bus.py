@@ -76,9 +76,7 @@ class Signer:
             raise BusError("Invalid control identity.")
 
     def sign(self, message: dict[str, Any], kind: str) -> bytes:
-        if kind not in {"command", "command-outcome"}:
-            raise BusError("Unsupported control message.")
-        validate_message(message, schema=kind)
+        _validate_body(message, kind)
         body = {
             "version": 1,
             "producer": self.producer,
@@ -119,10 +117,20 @@ class Verifier:
                 raise ValueError
             signature = base64.b64decode(packet.pop("signature"), validate=True)
             trusted.key.verify(signature, canonical(packet))
-            body = validate_message(packet["body"], schema=kind)
+            body = _validate_body(packet["body"], kind)
             return trusted.producer, body
         except (ValueError, KeyError, TypeError, InvalidSignature, ContractError, RecursionError):
             raise BusError("Untrusted control message.") from None
+
+
+def _validate_body(message: dict[str, Any], kind: str) -> dict[str, Any]:
+    if kind == "owner-request":
+        from .ownership import validate_owner_request
+
+        return validate_owner_request(message)
+    if kind not in {"command", "command-outcome"}:
+        raise BusError("Unsupported control message.")
+    return validate_message(message, schema=kind)
 
 
 @dataclass(frozen=True, repr=False)

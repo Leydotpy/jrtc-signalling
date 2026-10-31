@@ -22,6 +22,11 @@ jrtc-signalling = "jrtc_signalling.__main__:main"
 
 [project.optional-dependencies]
 bus = ["broka==0.0.2", "redis>=8.1,<9", "httpx2[socks]>=2.16,<3"]
+runtime = ["jrtc-signalling[bus]", "jrtc>=3.2,<4", "jrtc-video>=3.0.3,<4"]
+
+[tool.uv.sources]
+jrtc = { git = "https://github.com/Leydotpy/jrtc.git", rev = "b0998af03c0702302855cc7c52c3dd53ac7a32af" }
+jrtc-video = { git = "https://github.com/Leydotpy/jrtc-plugins.git", rev = "87bbb9b79870724a91fc98f8711c55f5cb4519e2", subdirectory = "jrtc-video" }
 
 # Broka's 0.0.2 wheel lists all optional engines/Django as mandatory, including
 # Django >=6.1 (which excludes our Python 3.12 support). Its core/Redis SPI uses

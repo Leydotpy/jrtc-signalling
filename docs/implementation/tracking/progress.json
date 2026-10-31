@@ -107,7 +107,7 @@
     {
       "id": "SG-07",
       "title": "Extract active JRTC session/handle ownership",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-02",
         "SG-06"
@@ -115,7 +115,7 @@
       "repos": "gateway + synq (JRTC only if needed)",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-10-31T05:11:12.654533+00:00"
     },
     {
       "id": "SG-08",

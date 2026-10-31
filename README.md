@@ -16,7 +16,8 @@ See [progress and blockers](docs/implementation/PROGRESS.md),
 [v1 protocol and compatibility map](docs/PROTOCOL.md),
 [ticket security contract](docs/SECURITY.md),
 [authentication setup](docs/AUTHENTICATION.md),
-[command delivery setup](docs/COMMAND_PLANE.md) and the
+[command delivery setup](docs/COMMAND_PLANE.md),
+[runtime ownership rehearsal](docs/RUNTIME_OWNERSHIP.md) and the
 [instruction pack](docs/implementation/README.md).
 
 ## Run locally
@@ -24,7 +25,7 @@ See [progress and blockers](docs/implementation/PROGRESS.md),
 Python 3.12–3.14 and uv 0.13.4:
 
 ```sh
-uv sync --locked --group dev --extra bus
+uv sync --locked --group dev --extra runtime
 uv run jrtc-signalling --check-config
 uv run jrtc-signalling
 ```
@@ -56,11 +57,11 @@ logs. Ingress/proxy logging must independently omit credentials and query string
 ## Verification
 
 ```sh
-uv run --extra bus ruff check src tests scripts/export_schemas.py scripts/check_django_authority.py
-uv run --extra bus ruff format --check src tests scripts/export_schemas.py scripts/check_django_authority.py
-uv run --extra bus mypy
+uv run --extra runtime ruff check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run --extra runtime ruff format --check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run --extra runtime mypy
 uv run python scripts/export_schemas.py --check
-uv run --extra bus pytest -q
+uv run --extra runtime pytest -q
 uv build
 ```
 

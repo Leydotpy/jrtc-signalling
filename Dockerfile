@@ -5,7 +5,7 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN uv sync --frozen --no-dev --no-editable --extra bus
+RUN uv sync --frozen --no-dev --no-editable --extra runtime
 
 FROM python:3.12-slim
 RUN groupadd --system gateway && useradd --system --gid gateway --no-create-home gateway
