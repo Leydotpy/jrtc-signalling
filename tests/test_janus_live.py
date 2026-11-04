@@ -6,13 +6,17 @@ import secrets
 import shutil
 import socket
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import httpx2 as httpx
 import pytest
 from jrtc_video import VideoRoomCreateRequest, VideoRoomDestroyRequest
 
+from jrtc_signalling.app import create_app
+from jrtc_signalling.config import Settings
 from jrtc_signalling.janus_runtime import JanusConfig, JanusRuntime
 from jrtc_signalling.ownership import OwnerLease, OwnershipError
 
@@ -97,8 +101,7 @@ async def live_runtime(tmp_path, bus_case):
     server = JanusServer(tmp_path)
     await server.start()
     meeting = str(uuid4())
-    bus = bus_case.config
-    object.__setattr__(bus, "redis_url", os.environ["GATEWAY_TEST_REDIS_URL"])
+    bus = replace(bus_case.config, redis_url=os.environ["GATEWAY_TEST_REDIS_URL"])
     runtime = JanusRuntime(
         bus,
         JanusConfig(
@@ -121,14 +124,20 @@ async def live_runtime(tmp_path, bus_case):
     # Django's actual signed lease API is separately covered by PostgreSQL and
     # cross-repository tests. This isolates the real Janus/SDK/ASGI lifecycle.
     runtime.authority.request = AsyncMock(side_effect=lease)
+    app = create_app(Settings(shutdown_timeout=30), runtime_factory=lambda: runtime)
     try:
-        await runtime.start()
-        yield runtime, server, meeting
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+            ) as client:
+                assert (await client.get("/health/live")).status_code == 200
+                ready = await client.get("/health/ready")
+                assert ready.status_code == 503
+                assert ready.json()["dependencies"]["janus"] == "ready"
+                assert ready.json()["dependencies"]["ownership"] == "ready"
+            yield runtime, server, meeting
     finally:
-        try:
-            await runtime.aclose()
-        finally:
-            await server.stop()
+        await server.stop()
 
 
 async def test_real_janus_session_management_and_unique_handle_disposal(live_runtime):

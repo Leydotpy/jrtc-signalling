@@ -3,7 +3,8 @@
 Example (from Synq, using its Python 3.14 environment):
 uv run --frozen --with /path/to/jrtc-signalling python \
   /path/to/jrtc-signalling/scripts/check_django_authority.py --synq .
-No Janus, broker, IdP or network calls. Keys and users are temporary test data.
+No Janus, broker, IdP or external network calls. Ownership HTTP uses Django ASGI
+in process. Keys and users are temporary test data.
 """
 
 import argparse
@@ -198,7 +199,11 @@ def main():
     # Register for Django's normal runner, including creation/destruction of test DB.
     HandoffTests.__module__ = __name__
     globals()["HandoffTests"] = HandoffTests
-    raise SystemExit(bool(DiscoverRunner(verbosity=1).run_tests([__name__ + ".HandoffTests"])))
+    labels = [
+        __name__ + ".HandoffTests",
+        "apps.meetings.tests.test_gateway_ownership.OwnershipHTTPTests",
+    ]
+    raise SystemExit(bool(DiscoverRunner(verbosity=1).run_tests(labels)))
 
 
 if __name__ == "__main__":

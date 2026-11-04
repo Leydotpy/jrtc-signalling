@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: Leydotpy/synq
-          ref: 088fd3adee2a20e9a0b3cbeae0477930f4f35939
+          ref: ea002b1bc29b69681cdea1cd7364d7fa1c9613bf
           path: synq-compatibility
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
         with:
