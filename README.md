@@ -1,15 +1,16 @@
 # JRTC signalling
 
 Dedicated Python ASGI signalling service for Synq. Django remains the authority
-for identity, admission, roles and revocation. JRTC and VideoRoom will manage
+for identity, admission, roles and revocation. JRTC and VideoRoom manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-SG-00–SG-06 provide the service scaffold, wire contracts, Django ticket/admission
-authority, gateway authentication and durable signed command/outcome delivery.
+SG-00–SG-07 provide the service scaffold, wire contracts, Django ticket/admission
+authority, gateway authentication, durable signed command/outcome delivery and
+optional exclusive JRTC runtime ownership.
 **Live media signalling is not enabled.** Authenticated
 control sessions can be rehearsed with explicit TLS/auth configuration; readiness
-remains 503 until exclusive JRTC ownership and media dispatch are integrated.
+remains 503 until browser media dispatch and its later acceptance gates are integrated.
 Existing Django/browser signalling remains unchanged.
 
 See [progress and blockers](docs/implementation/PROGRESS.md),
@@ -73,8 +74,10 @@ Synq issuer/admission/authority handoff and all five outbox command payload chec
 SG-06 adds real Redis delivery, reclaim/restart, bounded consumers and signed
 outcome checks. Synq's PostgreSQL/Redis suite verifies transactional outbox writes,
 concurrent claims, revocation races and a broker outage/retry through the gateway
-and real Django authority endpoint. Live Janus/browser-media acceptance remains
-later work.
+and real Django authority endpoint. SG-07 adds signed ownership HTTP round trips,
+PostgreSQL owner-claim races and two isolated live Janus tests through ASGI
+startup/shutdown, including reusable management handles, concurrent attachment,
+disposal and server recovery. Browser media acceptance remains later work.
 
 ## Local container
 
@@ -91,7 +94,8 @@ deployment has been created.
 
 ## Next dependency
 
-SG-07 supplies exclusive JRTC runtime ownership and generation fencing; SG-08 adds
-media dispatch. The current command enforcer reports failed/owner_lost until that
-runtime exists. Follow the
+SG-08 adds browser media dispatch to the fenced runtime. With the optional runtime
+configured, commands check current ownership but report failed/unavailable until
+physical enforcement is implemented in SG-13. The default enforcer without a
+runtime still reports failed/owner_lost. Follow the
 [task order](docs/implementation/EXECUTION_ORDER.md).

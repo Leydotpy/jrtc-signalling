@@ -118,3 +118,7 @@ GATEWAY_TEST_JANUS=1 GATEWAY_TEST_REDIS_URL=redis://127.0.0.1:6379/15 \
 ```
 
 The SG-07 task report records executed results; a skipped live check is not a pass.
+For an extracted Janus installation, put its binary on `PATH`, configure its
+shared-library search path and set `GATEWAY_TEST_JANUS_LIB_DIR` to the extracted
+library directory. The test still starts a real isolated Janus process; no system
+service or production Janus endpoint is used.

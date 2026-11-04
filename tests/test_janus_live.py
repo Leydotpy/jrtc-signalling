@@ -33,13 +33,14 @@ class JanusServer:
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             self.port = listener.getsockname()[1]
+        library_root = Path(os.environ.get("GATEWAY_TEST_JANUS_LIB_DIR", "/usr/lib"))
         for name, library in [
             ("plugins", "libjanus_videoroom.so"),
             ("transports", "libjanus_websockets.so"),
         ]:
             folder = directory / name
             folder.mkdir()
-            source = next(Path("/usr/lib").rglob(library))
+            source = next(library_root.rglob(library))
             (folder / library).symlink_to(source)
         (directory / "events").mkdir()
         (directory / "janus.jcfg").write_text(

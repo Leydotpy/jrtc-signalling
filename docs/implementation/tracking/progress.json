@@ -107,15 +107,18 @@
     {
       "id": "SG-07",
       "title": "Extract active JRTC session/handle ownership",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-02",
         "SG-06"
       ],
       "repos": "gateway + synq (JRTC only if needed)",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-10-31T05:11:12.654533+00:00"
+      "report": "tracking/reports/SG-07.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "76109404888f5846be4dac24d608dbf49aba55f5",
+        "Leydotpy/synq": "ea002b1bc29b69681cdea1cd7364d7fa1c9613bf"
+      },
+      "last_updated": "2026-11-04T17:35:16.539346+00:00"
     },
     {
       "id": "SG-08",
