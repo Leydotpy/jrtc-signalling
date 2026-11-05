@@ -123,15 +123,17 @@
     {
       "id": "SG-08",
       "title": "Browser\u21c4gateway signaling operations",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "dependencies": [
         "SG-04",
         "SG-07"
       ],
       "repos": "gateway",
-      "report": null,
-      "commits": {},
-      "last_updated": null
+      "report": "tracking/reports/SG-08.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "f24631887cf06b73a219e17119f793be37d68dc5"
+      },
+      "last_updated": "2026-11-05T17:17:31.074648+00:00"
     },
     {
       "id": "SG-09",
