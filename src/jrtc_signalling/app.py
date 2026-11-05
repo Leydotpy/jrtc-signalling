@@ -1,4 +1,4 @@
-"""Standalone ASGI factory. Media access is closed until SG-04 and SG-08."""
+"""Standalone ASGI factory with an explicit, non-production media rehearsal."""
 
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -28,6 +28,8 @@ def create_app(
     authentication = auth_config
     if authentication is None and selected.auth_config_file:
         authentication = AuthConfig.read(selected.auth_config_file)
+    if selected.media_rehearsal and authentication is None:
+        raise ConfigurationError("Media rehearsal requires authentication.")
     factory: Callable[[], Runtime] = runtime_factory or ScaffoldRuntime
     if runtime_factory is None and selected.bus_config_file:
         try:
@@ -53,8 +55,16 @@ def create_app(
         await lifecycle.start()
         try:
             if authentication is not None:
+                media = None
+                if selected.media_rehearsal:
+                    from .janus_runtime import JanusRuntime
+                    from .media import MediaHub
+
+                    if not isinstance(lifecycle.runtime, JanusRuntime):
+                        raise ConfigurationError("Media rehearsal requires fenced Janus runtime.")
+                    media = MediaHub(lifecycle.runtime)
                 app.state.auth_endpoint = AuthenticatedEndpoint(
-                    authentication, selected, authority_factory(authentication)
+                    authentication, selected, authority_factory(authentication), media
                 )
             yield
         finally:
@@ -72,7 +82,7 @@ def create_app(
         return {
             "phase": phase,
             "dependencies": dependencies.as_dict(),
-            "signalling": "disabled",
+            "signalling": "rehearsal" if selected.media_rehearsal else "disabled",
             "ready": False,
         }
 
@@ -87,7 +97,7 @@ def create_app(
         )
 
     async def ready(request: Request) -> JSONResponse:
-        # No setting can turn the incomplete verifier/runtime into an accepting service.
+        # Rehearsal is not readiness: later revocation/ICE/client gates remain.
         return JSONResponse(
             {"status": "not_ready", **snapshot(request)},
             status_code=503,

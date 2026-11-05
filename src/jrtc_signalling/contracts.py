@@ -32,6 +32,14 @@ class ContractError(ValueError):
     """Safe to expose; never includes input values, candidate text, or JWTs."""
 
 
+class OperationError(Exception):
+    """A fixed protocol code, never SDK exception text or media content."""
+
+    def __init__(self, code: str = "INVALID_MESSAGE") -> None:
+        self.code = code
+        super().__init__(code)
+
+
 def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:

@@ -1,9 +1,11 @@
 # Signalling v1 contract
 
-Status: SG-01 contract baseline. Shapes and bounded parsing are implemented;
-operations, cryptographic verification, Broka delivery and SSE are subsequent
-tasks. This document and the exported schemas supersede the imported draft for
-this service. They do not change any current SDK method or Django endpoint.
+Status: SG-08. Shapes, bounded parsing, authentication, signed command delivery
+and opt-in publisher/subscriber dispatch are implemented. ICE batching/restart,
+domain projection, SSE, physical command enforcement and client cutover remain
+later gates. See [media enablement and exact limits](MEDIA_SIGNALLING.md).
+This document and the exported schemas supersede the imported draft for this
+service. They do not change any current SDK method or Django endpoint.
 
 Canonical definitions: `src/jrtc_signalling/schema_definitions.py`. Language-neutral
 JSON Schema 2020-12: `src/jrtc_signalling/schemas/v1/`. Synthetic examples for every
@@ -37,16 +39,18 @@ and time-window constraints, which JSON Schema cannot express.
   Empty candidates require `completed=true`; booleans are not coerced. v1 uses
   only plural `candidates`. The SG-12 legacy adapter may normalize a singular
   candidate before this boundary. Never accept both forms together.
-- Proposed SG-04 budgets: authenticate in 5 s, 16 in-flight requests, 32 queued
-  replies, 20 commands/s with burst 40, idle timeout 90 s, ping interval 25 s.
-  Overload rejects/closes; queues and deduplication stores must be bounded.
-  The scaffold enforces server frame/queue/ping limits only; it rejects all WS
-  upgrades until auth and runtime are implemented.
+- Implemented budgets: authenticate in 5 s; one active operation per connection,
+  16 across the worker; 8 queued requests and 16 replies/notifications; separate
+  256 KiB request/reply/replay caps. The response cache holds at most 64 records.
+  Rate limit: 30 frames/s with burst 60. Idle sessions end at ticket expiry;
+  transport ping defaults to 25 s. Queue/capacity wait is at most 6 s, each SDK
+  call at most 3 s bounded further by ownership expiry, sends at most 2 s.
 
 ## Compatibility map
 
 Source paths and exact SHAs are recorded in [SG-00](implementation/tracking/reports/SG-00.md).
-This is the map for the future SDK transport adapter, not a replacement SDK.
+This maps the v1 server operations to the future client transport adapter;
+synq.js itself is unchanged. ICE operations still return `NOT_IMPLEMENTED`.
 
 | Current MeetingConnection call / Socket.IO event | v1 gateway operation | Payload and response |
 | --- | --- | --- |
@@ -93,6 +97,10 @@ any application log or domain event.
 | hangup/detached/session loss | media.event or session.reconnect_required | disconnect/session_lost observation |
 | revocation enforced | session.revoked and close | participant.removal_enforced + command outcome |
 
+The domain-observation column is the SG-10/13 target, not implemented delivery
+evidence. SG-08 emits fixed media notifications and the SG-07 diagnostic sink;
+it does not publish these domain observations or claim physical host revocation.
+
 Deduplicate by owner/client/negotiation binding and transaction/event identity.
 Unsolicited JSEP remains deliverable; do not suppress every event that happens
 to have a transaction field. A final ICE batch is one JRTC trickle call with the
@@ -107,7 +115,7 @@ reconcile or replace the fenced generation instead of replaying the operation.
 Unknown schema versions reject before dispatch. Required fields or semantics
 that change incompatibly require a new version/subprotocol.
 
-Close policies for SG-04: 1008 policy denial, 1009 oversized message, 1013 temporary
+Close policies: 1008 policy denial, 1009 oversized message, 1013 temporary
 overload/unavailable, 1012 drain/restart. Before accepting a WebSocket, use a safe
 HTTP denial when the ASGI server supports it. No detailed auth errors in logs.
 

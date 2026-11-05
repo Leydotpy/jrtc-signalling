@@ -27,6 +27,7 @@ class Settings:
     auth_config_file: str = ""
     bus_config_file: str = ""
     runtime_config_file: str = ""
+    media_rehearsal: bool = False
     tls_cert_file: str = ""
     tls_key_file: str = ""
 
@@ -70,6 +71,8 @@ class Settings:
             raise ConfigurationError("Invalid RUNTIME_CONFIG_FILE.")
         if self.runtime_config_file and not self.bus_config_file:
             raise ConfigurationError("Runtime ownership requires BUS_CONFIG_FILE.")
+        if type(self.media_rehearsal) is not bool:
+            raise ConfigurationError("Invalid MEDIA_REHEARSAL.")
         if any(
             not isinstance(path, str) or len(path) > 4096
             for path in (self.tls_cert_file, self.tls_key_file)
@@ -102,12 +105,16 @@ class Settings:
             "AUTH_CONFIG_FILE",
             "BUS_CONFIG_FILE",
             "RUNTIME_CONFIG_FILE",
+            "MEDIA_REHEARSAL",
             "TLS_CERT_FILE",
             "TLS_KEY_FILE",
         }
         if any(key.startswith(prefix) and key.removeprefix(prefix) not in known for key in env):
             raise ConfigurationError("Unknown JRTC_SIGNALLING configuration field.")
         try:
+            media = env.get(prefix + "MEDIA_REHEARSAL", "false")
+            if media not in {"true", "false"}:
+                raise ValueError
             return cls(
                 host=env.get(prefix + "HOST", "127.0.0.1"),
                 port=int(env.get(prefix + "PORT", "8765")),
@@ -122,6 +129,7 @@ class Settings:
                 auth_config_file=env.get(prefix + "AUTH_CONFIG_FILE", ""),
                 bus_config_file=env.get(prefix + "BUS_CONFIG_FILE", ""),
                 runtime_config_file=env.get(prefix + "RUNTIME_CONFIG_FILE", ""),
+                media_rehearsal=media == "true",
                 tls_cert_file=env.get(prefix + "TLS_CERT_FILE", ""),
                 tls_key_file=env.get(prefix + "TLS_KEY_FILE", ""),
             )

@@ -14,6 +14,7 @@ from uuid import uuid4
 import httpx2 as httpx
 import pytest
 from jrtc_video import VideoRoomCreateRequest, VideoRoomDestroyRequest
+from media_helpers import Browser, publish_payload
 
 from jrtc_signalling.app import create_app
 from jrtc_signalling.config import Settings
@@ -98,7 +99,7 @@ class JanusServer:
 
 
 @pytest.fixture
-async def live_runtime(tmp_path, bus_case):
+async def live_runtime(tmp_path, bus_case, auth_config, authority):
     server = JanusServer(tmp_path)
     await server.start()
     meeting = str(uuid4())
@@ -125,7 +126,12 @@ async def live_runtime(tmp_path, bus_case):
     # Django's actual signed lease API is separately covered by PostgreSQL and
     # cross-repository tests. This isolates the real Janus/SDK/ASGI lifecycle.
     runtime.authority.request = AsyncMock(side_effect=lease)
-    app = create_app(Settings(shutdown_timeout=30), runtime_factory=lambda: runtime)
+    app = create_app(
+        Settings(shutdown_timeout=30, media_rehearsal=True),
+        runtime_factory=lambda: runtime,
+        auth_config=auth_config,
+        authority_factory=lambda config: authority,
+    )
     try:
         async with app.router.lifespan_context(app):
             async with httpx.AsyncClient(
@@ -136,13 +142,13 @@ async def live_runtime(tmp_path, bus_case):
                 assert ready.status_code == 503
                 assert ready.json()["dependencies"]["janus"] == "ready"
                 assert ready.json()["dependencies"]["ownership"] == "ready"
-            yield runtime, server, meeting
+            yield runtime, server, meeting, app
     finally:
         await server.stop()
 
 
 async def test_real_janus_session_management_and_unique_handle_disposal(live_runtime):
-    runtime, _server, meeting = live_runtime
+    runtime, _server, meeting, _app = live_runtime
     assert runtime.manager.ready
     session = runtime.session(meeting)
     assert type(session.id) is int
@@ -172,7 +178,7 @@ async def test_real_janus_session_management_and_unique_handle_disposal(live_run
 
 
 async def test_real_janus_loss_recovery_uses_fresh_session_and_handle(live_runtime):
-    runtime, server, meeting = live_runtime
+    runtime, server, meeting, _app = live_runtime
     await runtime.management(meeting, 1, "list_rooms")
     old_service = next(iter(runtime.services.values()))
     ref = await runtime.registry.attach(meeting, str(uuid4()), str(uuid4()), "publisher", 1)
@@ -200,3 +206,83 @@ async def test_real_janus_loss_recovery_uses_fresh_session_and_handle(live_runti
     await runtime.management(meeting, 1, "list_rooms")
     assert any(service is not old_service for service in runtime.services.values())
     assert runtime.manager.metrics["recoveries_completed"] >= 1
+
+
+async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
+    live_runtime, claims, sign, monkeypatch
+):
+    # Optional test dependency only; the gateway never terminates WebRTC media.
+    from aiortc import AudioStreamTrack, RTCConfiguration, RTCPeerConnection, RTCSessionDescription
+
+    # Deterministic host-only candidate; no interface enumeration is required
+    # in restricted CI/cloud runners. Both peers and Janus share the namespace.
+    monkeypatch.setattr("aioice.ice.get_host_addresses", lambda **kwargs: ["127.0.0.1"])
+
+    runtime, _server, meeting, app = live_runtime
+    browsers = [
+        Browser(
+            app,
+            {
+                **claims,
+                "meeting_id": meeting,
+                "participant_id": str(uuid4()),
+                "participant_session_id": str(uuid4()),
+                "jti": str(uuid4()),
+            },
+            sign,
+        )
+        for _ in range(2)
+    ]
+    publisher, subscriber = browsers
+    publisher_pc, subscriber_pc = [
+        RTCPeerConnection(RTCConfiguration(iceServers=[])) for _ in range(2)
+    ]
+    try:
+        for browser in browsers:
+            assert (await browser.open())["result"]["gateway_owner_id"] == runtime.owner_id
+        publisher_pc.addTransceiver(AudioStreamTrack(), direction="sendonly")
+        await publisher_pc.setLocalDescription(await publisher_pc.createOffer())
+        payload = publish_payload()
+        payload["offer"]["sdp"] = publisher_pc.localDescription.sdp
+        published = (await publisher.request("media.publisher.publish", payload))["result"]
+        assert published["jsep"]["type"] == "answer"
+        await publisher_pc.setRemoteDescription(RTCSessionDescription(**published["jsep"]))
+        async with asyncio.timeout(10):
+            while True:
+                event = await publisher.receive()
+                if event.get("payload", {}).get("kind") == "webrtcup":
+                    break
+        joined = (await subscriber.request("media.subscriber.join"))["result"]
+        assert joined["jsep"]["type"] == "offer"
+        assert joined["selected_streams"][0]["feed"] == published["streams"][0]["janus_feed_id"]
+        await subscriber_pc.setRemoteDescription(RTCSessionDescription(**joined["jsep"]))
+        await subscriber_pc.setLocalDescription(await subscriber_pc.createAnswer())
+        answer = subscriber_pc.localDescription.sdp
+        started = await subscriber.request(
+            "media.subscriber.start",
+            {
+                "answer": {"type": "answer", "sdp": answer},
+                "negotiation_id": joined["negotiation_id"],
+            },
+        )
+        assert started["result"]["action"] == "start"
+        # Receive a real silent audio frame through Janus with complete host
+        # candidates in SDP; external STUN/TURN and gateway trickle are not used.
+        track = subscriber_pc.getReceivers()[0].track
+        frame = await asyncio.wait_for(track.recv(), 10)
+        assert frame.samples > 0
+        assert (await subscriber.request("media.subscriber.detach"))["result"]["action"] == "detach"
+        assert (await publisher.request("media.publisher.unpublish"))["result"][
+            "action"
+        ] == "unpublish"
+        assert (await publisher.request("media.publisher.publish", publish_payload()))["result"][
+            "action"
+        ] == "publish"
+        assert (await publisher.request("media.hangup", {"handle_type": "publisher"}))["result"][
+            "lifecycle_state"
+        ] == "detached"
+        assert not runtime.registry.bindings
+    finally:
+        for browser in browsers:
+            await browser.close()
+        await asyncio.gather(publisher_pc.close(), subscriber_pc.close())

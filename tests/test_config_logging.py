@@ -44,6 +44,8 @@ def test_environment_settings_do_not_require_django_or_services():
         ("LOG_LEVEL", "debug"),
         ("LOG_LEVEL", "trace"),
         ("ENABLE_SIGNALLING", "true"),
+        ("MEDIA_REHEARSAL", "1"),
+        ("MEDIA_REHEARSAL", "TRUE"),
     ],
 )
 def test_invalid_config_fails_without_echoing_input(name, value):
@@ -61,11 +63,31 @@ def test_invalid_config_fails_without_echoing_input(name, value):
         {"shutdown_timeout": float("nan")},
         {"host": None},
         {"websocket_path": None},
+        {"media_rehearsal": 1},
     ],
 )
 def test_programmatic_config_has_same_validation(kwargs):
     with pytest.raises(ConfigurationError):
         Settings(**kwargs)
+
+
+def test_media_rehearsal_is_explicit_and_requires_authentication():
+    from jrtc_signalling.app import create_app
+
+    assert not Settings.from_env({}).media_rehearsal
+    enabled = Settings.from_env({"JRTC_SIGNALLING_MEDIA_REHEARSAL": "true"})
+    assert enabled.media_rehearsal
+    with pytest.raises(ConfigurationError):
+        create_app(enabled)
+
+
+async def test_media_rehearsal_requires_owned_runtime(auth_config):
+    from jrtc_signalling.app import create_app
+
+    app = create_app(Settings(media_rehearsal=True), auth_config=auth_config)
+    with pytest.raises(ConfigurationError):
+        async with app.router.lifespan_context(app):
+            pytest.fail("Scaffold cannot enable media")
 
 
 def test_server_logs_cannot_leak_url_arguments_or_exception_input():

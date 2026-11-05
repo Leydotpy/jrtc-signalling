@@ -1,16 +1,19 @@
-"""Bounded authenticated control sessions; media dispatch remains SG-08 work."""
+"""Authenticated WebSocket admission and owned signalling-session lifecycle."""
 
 import asyncio
 import time
-from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from starlette.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from .auth import AuthConfig, AuthError, Authority, AuthorizationSession, TicketVerifier
 from .config import Settings
-from .contracts import ContractError, decode_message, validate_message
+from .contracts import ContractError, decode_message
+from .signalling import CloseSession, DispatchMetrics, SocketSession
+
+if TYPE_CHECKING:
+    from .media import MediaHub
 
 PROTOCOL = "jrtc.signalling.v1"
 BINDING = ("meeting_id", "participant_session_id", "generation")
@@ -33,9 +36,19 @@ class RateLimit:
 
 
 class AuthenticatedEndpoint:
-    def __init__(self, config: AuthConfig, settings: Settings, authority: Authority) -> None:
+    def __init__(
+        self,
+        config: AuthConfig,
+        settings: Settings,
+        authority: Authority,
+        media: "MediaHub | None" = None,
+    ) -> None:
         self.config, self.settings, self.authority = config, settings, authority
         self.verifier = TicketVerifier(config)
+        self.media = media
+        self.metrics = DispatchMetrics()
+        self.operations = asyncio.Semaphore(16)
+        self.handlers: set[asyncio.Task[Any]] = set()
         self.connections: dict[WebSocket, AuthorizationSession | None] = {}
         self.handshakes = RateLimit(burst=20, per_second=10)
         self.closing = False
@@ -58,35 +71,11 @@ class AuthenticatedEndpoint:
         if message["type"] == "websocket.disconnect":
             raise WebSocketDisconnect(message.get("code", 1000))
         text = message.get("text")
-        if (
-            not isinstance(text, str)
-            or len(text.encode("utf-8")) > self.settings.websocket_max_size
-        ):
+        if not isinstance(text, str):
             raise ContractError("Invalid frame.")
+        if len(text.encode("utf-8")) > self.settings.websocket_max_size:
+            raise CloseSession(1009)
         return decode_message(text)
-
-    async def _reply(
-        self, websocket: WebSocket, request: dict[str, Any], error: str | None = None
-    ) -> None:
-        result: dict[str, Any] = {
-            "version": 1,
-            "id": request["id"],
-            "generation": request["generation"],
-            "server_time": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-            "ok": error is None,
-        }
-        if error:
-            result["error"] = {
-                "code": error,
-                "message": "Operation unavailable.",
-                "retryable": error == "UNAVAILABLE",
-            }
-        else:
-            # No invented owner generation or media-ready claim before SG-07/08.
-            result["result"] = {}
-        validate_message(result, schema="response")
-        async with asyncio.timeout(2):
-            await websocket.send_json(result)
 
     @staticmethod
     def _bind(request: dict[str, Any], claims: dict[str, Any], sequence: int) -> None:
@@ -115,6 +104,9 @@ class AuthenticatedEndpoint:
             return
         # No await between admission and insertion: bounded per event-loop worker.
         self.connections[websocket] = None
+        handler = asyncio.current_task()
+        assert handler is not None
+        self.handlers.add(handler)
         try:
             async with asyncio.timeout(self.config.auth_timeout):
                 await websocket.accept(subprotocol=PROTOCOL)
@@ -130,49 +122,11 @@ class AuthenticatedEndpoint:
                 )
                 await session.check(request["op"], consume=True)
             self.connections[websocket] = session
-            await self._reply(websocket, request)
-            sequence = 2
-            rate = RateLimit(burst=60, per_second=30)
-            while not self.closing:
-                remaining = session.claims["exp"] - time.time()
-                if remaining <= 0:
-                    raise AuthError("EXPIRED_TICKET")
-                request = await self._receive(websocket, remaining)
-                if time.time() >= session.claims["exp"]:
-                    raise AuthError("EXPIRED_TICKET")
-                if not rate.take():
-                    raise AuthError("RATE_LIMITED")
-                self._bind(request, session.claims, sequence)
-                sequence += 1
-                operation = request["op"]
-                if operation == "session.refresh":
-                    revision = session.revision
-                    claims = self.verifier.verify(request["payload"]["ticket"])
-                    identity = (*BINDING, "sub", "participant_id", "grant_id")
-                    if (
-                        any(claims[key] != session.claims[key] for key in identity)
-                        or claims["authorization_epoch"] < session.minimum_epoch
-                    ):
-                        raise AuthError("FORBIDDEN")
-                    fresh = AuthorizationSession(
-                        self.authority, claims, cache_seconds=self.config.cache_seconds
-                    )
-                    await fresh.check(operation, consume=True)
-                    if session.revision != revision:
-                        raise AuthError("STALE_AUTHORIZATION")
-                    session = fresh
-                    self.connections[websocket] = session
-                    await self._reply(websocket, request)
-                elif operation == "session.ping":
-                    await session.check(operation)
-                    await self._reply(websocket, request)
-                elif operation.startswith("media."):
-                    await session.authorize(operation, request["payload"])
-                    await self._reply(websocket, request, "UNAVAILABLE")
-                else:
-                    raise AuthError("FORBIDDEN")
+            await SocketSession(self, websocket, session).run(request)
         except WebSocketDisconnect:
             pass
+        except CloseSession as exc:
+            await self._close(websocket, exc.code)
         except AuthError as exc:
             code = 1013 if exc.code in {"UNAVAILABLE", "OVERLOADED", "RATE_LIMITED"} else 1008
             await self._close(websocket, code)
@@ -185,6 +139,7 @@ class AuthenticatedEndpoint:
             await self._close(websocket, 1011)
         finally:
             self.connections.pop(websocket, None)
+            self.handlers.discard(handler)
 
     async def _close(self, websocket: WebSocket, code: int) -> None:
         try:
@@ -195,6 +150,14 @@ class AuthenticatedEndpoint:
 
     async def aclose(self) -> None:
         self.closing = True
-        await asyncio.gather(*(self._close(ws, 1001) for ws in list(self.connections)))
+        await asyncio.gather(
+            *(self._close(ws, 1012 if self.media else 1001) for ws in list(self.connections))
+        )
+        handlers = tuple(self.handlers)
+        for task in handlers:
+            task.cancel()
         async with asyncio.timeout(self.settings.shutdown_timeout):
+            await asyncio.gather(*handlers, return_exceptions=True)
+            if self.media is not None:
+                await self.media.aclose()
             await self.authority.aclose()

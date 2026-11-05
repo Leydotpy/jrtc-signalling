@@ -257,7 +257,7 @@ def test_bad_frames_close_safely_without_credentials_in_logs(app, claims, sign, 
             ws.send_json(envelope(claims, ticket=secret))
         with pytest.raises(WebSocketDisconnect) as error:
             ws.receive_json()
-        assert error.value.code == 1008
+        assert error.value.code == (1009 if frame == "oversize" else 1008)
         assert secret not in error.value.reason
     assert secret not in caplog.text
 

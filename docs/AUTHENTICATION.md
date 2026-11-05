@@ -1,9 +1,9 @@
 # Authenticated control sessions (SG-04)
 
-Authentication can be enabled for integration rehearsal. Media operations remain
-unavailable until runtime ownership and dispatch are implemented in SG-07/08.
-Readiness remains 503. A successful hello/refresh has an empty result: it does
-not advertise a fabricated gateway owner or lease generation.
+Authentication can be enabled for integration rehearsal. Media operations require
+the separate [SG-08 media flag and fenced runtime](MEDIA_SIGNALLING.md).
+Readiness remains 503. Control-only/lobby hello and refresh return an empty result;
+media-enabled hello returns the actual owner and lease generation.
 
 Set `JRTC_SIGNALLING_AUTH_CONFIG_FILE` to a mounted JSON file with exactly these
 fields (the values below are placeholders, not deployable credentials):
@@ -53,14 +53,16 @@ the start of the RPC and never beyond ticket expiry. Ping/ICE may reuse it;
 privileged media transitions always recheck Django. Invalidation racing an RPC
 cannot repopulate the cache. Unavailable/expired/mismatched authority denies;
 there is no stale fallback. The invalidation entry point is implemented/tested,
-but its durable broker feed is SG-06 work. The cache window is not an atomic
-remote authorization-to-Janus fence. Media remains disabled until ownership,
-live revocation delivery and dispatch fences are complete.
+but physical enforcement of durable commands remains SG-13 work. The cache window
+is not an atomic remote authorization-to-Janus fence. Production media remains
+disabled pending live revocation and acceptance gates. SG-08 retains the fresh
+authority preflight while routing SDP directly to Janus; it does not claim zero
+authority HTTP round trips for sensitive transitions.
 
 Lobby cannot call media operations. Publisher/subscriber scopes and current
-microphone/camera/screen grants are checked separately. SG-08 must also reconcile
-declared tracks with actual SDP and apply grants to the Janus handle; client track
-metadata alone is not proof of what media is published. This phase forwards no SDP.
+microphone/camera/screen grants are checked separately. SG-08 reconciles declared
+tracks with active SDP media sections and applies grants to the Janus handle.
+This validates MID/kind/source permissions, not capture-device provenance.
 
 ## Resource and failure budgets
 
@@ -73,8 +75,9 @@ metadata alone is not proof of what media is published. This phase forwards no S
 - Authority calls use TLS validation, the dedicated bearer credential, two-second
   total deadline, at most 16 pooled connections and a 16 KiB response ceiling.
   Redirects are forbidden. No JWT is sent to this RPC, only verified claims.
-- Close 1008 for policy/authentication, 1013 for temporary pressure/authority
-  unavailability, 1011 for unexpected failure, 1001 during shutdown. Reasons and
+- Close 1008 for policy/authentication, 1009 for oversized frames, 1013 for temporary
+  pressure/authority unavailability, 1011 for unexpected failure, and 1001 during
+  control-only shutdown (1012 with media enabled). Reasons and
   logs never contain JWTs, raw frames, authority replies, SDP or ICE.
 
 `scripts/check_django_authority.py` runs the actual Synq issuer, gateway verifier,

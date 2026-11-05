@@ -5,12 +5,12 @@ for identity, admission, roles and revocation. JRTC and VideoRoom manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-SG-00–SG-07 provide the service scaffold, wire contracts, Django ticket/admission
+SG-00–SG-08 provide the service scaffold, wire contracts, Django ticket/admission
 authority, gateway authentication, durable signed command/outcome delivery and
-optional exclusive JRTC runtime ownership.
-**Live media signalling is not enabled.** Authenticated
-control sessions can be rehearsed with explicit TLS/auth configuration; readiness
-remains 503 until browser media dispatch and its later acceptance gates are integrated.
+optional exclusive JRTC runtime ownership and bounded browser media dispatch.
+**Media signalling is disabled by default.** Isolated media rehearsal requires
+explicit TLS/auth/runtime configuration and its own opt-in flag; readiness
+remains 503 until the later acceptance gates are complete.
 Existing Django/browser signalling remains unchanged.
 
 See [progress and blockers](docs/implementation/PROGRESS.md),
@@ -18,7 +18,8 @@ See [progress and blockers](docs/implementation/PROGRESS.md),
 [ticket security contract](docs/SECURITY.md),
 [authentication setup](docs/AUTHENTICATION.md),
 [command delivery setup](docs/COMMAND_PLANE.md),
-[runtime ownership rehearsal](docs/RUNTIME_OWNERSHIP.md) and the
+[runtime ownership rehearsal](docs/RUNTIME_OWNERSHIP.md),
+[media signalling rehearsal](docs/MEDIA_SIGNALLING.md) and the
 [instruction pack](docs/implementation/README.md).
 
 ## Run locally
@@ -36,14 +37,14 @@ Use these entrypoints to retain safe logging and WebSocket server limits.
 Settings are read from `JRTC_SIGNALLING_*` environment variables; see
 [.env.example](.env.example). Dotenv files are not loaded automatically.
 No Django settings, Janus URL or broker credentials are needed for the scaffold.
-There is deliberately no environment switch to enable unimplemented media access.
+The rehearsal flag does not enable production readiness or unimplemented ICE operations.
 
 | Endpoint | Scaffold response | Purpose |
 | --- | --- | --- |
 | GET /health/live | 200 while running/draining | process liveness |
 | GET /health/ready | 503, dependencies and signalling=disabled | traffic readiness |
 | GET /health | same as readiness | aggregate status |
-| WS /ws | Disabled by default; configured WSS accepts authenticated control sessions | authentication rehearsal |
+| WS /ws | Disabled by default; configured WSS accepts authenticated sessions | control/media rehearsal |
 
 The gateway reports Janus, Broka, authority and ownership independently.
 No real connections are made by ScaffoldRuntime. Instance UUIDs are diagnostic;
@@ -77,7 +78,10 @@ concurrent claims, revocation races and a broker outage/retry through the gatewa
 and real Django authority endpoint. SG-07 adds signed ownership HTTP round trips,
 PostgreSQL owner-claim races and two isolated live Janus tests through ASGI
 startup/shutdown, including reusable management handles, concurrent attachment,
-disposal and server recovery. Browser media acceptance remains later work.
+disposal and server recovery. SG-08 adds wire-level mock Janus dispatch and a real
+publisher/subscriber offer/answer/start exchange receiving an audio frame through
+Janus. Install `--group media-test` for the opted-in Janus tests; see the media
+rehearsal guide. Browser/TURN/host-removal acceptance remains later work.
 
 ## Local container
 
@@ -94,7 +98,7 @@ deployment has been created.
 
 ## Next dependency
 
-SG-08 adds browser media dispatch to the fenced runtime. With the optional runtime
+SG-09 adds ordered ICE batching, completion and restart handling. With the optional runtime
 configured, commands check current ownership but report failed/unavailable until
 physical enforcement is implemented in SG-13. The default enforcer without a
 runtime still reports failed/owner_lost. Follow the

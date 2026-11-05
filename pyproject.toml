@@ -46,6 +46,9 @@ dev = [
   "types-jsonschema>=4.26,<5",
   "pytest-asyncio>=1.4,<2",
 ]
+media-test = [
+    "aiortc>=1.14,<2",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
