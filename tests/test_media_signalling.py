@@ -567,3 +567,39 @@ async def test_cancelled_room_cleanup_retains_ownership_fence(rehearsal):
         r.runtime.management = original
         await r.hub.aclose()
         r.runtime.registry.cleanup_failed = False
+
+
+async def test_repeated_asgi_cancellation_waits_for_handle_disposal(rehearsal, monkeypatch):
+    r = rehearsal
+    browser = await r.browser()
+    r.fake.block = "joinandconfigure"
+    await browser.send(browser.message("media.publisher.publish", publish_payload()))
+    await asyncio.wait_for(r.fake.entered.wait(), 2)
+    disposing, finish = asyncio.Event(), asyncio.Event()
+    original = r.runtime.registry._dispose
+
+    async def dispose(binding):
+        disposing.set()
+        await finish.wait()
+        await original(binding)
+
+    monkeypatch.setattr(r.runtime.registry, "_dispose", dispose)
+    try:
+        browser.task.cancel("first shutdown")
+        await asyncio.wait_for(disposing.wait(), 2)
+        browser.task.cancel("second shutdown")
+        await asyncio.sleep(0)
+        assert not browser.task.done()
+        finish.set()
+        with pytest.raises(asyncio.CancelledError) as error:
+            await browser.task
+        assert error.value.args == ("second shutdown",)
+        assert not r.hub.peers
+        assert not r.runtime.registry.bindings
+        assert not r.runtime.registry.cleanup_failed
+        assert r.metrics.active == 0
+    finally:
+        finish.set()
+        r.fake.release.set()
+        await asyncio.gather(browser.task, return_exceptions=True)
+        browser.task = None

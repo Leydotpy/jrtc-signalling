@@ -351,8 +351,25 @@ class SocketSession:
         except OperationError as exc:
             raise CloseSession(1013 if exc.code == "OVERLOADED" else 1012) from None
         finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            if self.peer is not None:
-                await self.peer.aclose()
+            cleanup = asyncio.create_task(self._cleanup(tasks), name="signalling-session-cleanup")
+            cancelled: asyncio.CancelledError | None = None
+            while True:
+                try:
+                    await asyncio.shield(cleanup)
+                    break
+                except asyncio.CancelledError as exc:
+                    # Repeated ASGI/AnyIO cancellation must not cancel the join
+                    # or leave a Janus handle alive. Preserve the caller's cancel
+                    # object/message rather than a child task's bare exception.
+                    cancelled = cancelled or exc
+                    if cleanup.cancelled():
+                        raise
+            if cancelled is not None:
+                raise cancelled
+
+    async def _cleanup(self, tasks: list[asyncio.Task[Any]]) -> None:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        if self.peer is not None:
+            await self.peer.aclose()
