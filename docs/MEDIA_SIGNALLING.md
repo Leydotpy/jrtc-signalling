@@ -142,8 +142,9 @@ GATEWAY_TEST_JANUS=1 GATEWAY_TEST_REDIS_URL=redis://127.0.0.1:6379/15 \
 
 The suite starts isolated Janus processes and requires the Janus binary and
 VideoRoom/WebSocket modules. `GATEWAY_TEST_JANUS_LIB_DIR` can select an extracted
-library tree. Test peers bind loopback candidates, avoiding interface enumeration
-and external STUN/TURN. CI runs these tests in its dedicated Janus job.
+library tree. Test peers use local host candidates, falling back to loopback when
+interface enumeration is prohibited. No external STUN/TURN is used. CI runs
+these tests in its dedicated Janus job.
 This is not a real browser, TURN, batching/restart, frontend, durable presence or
 host-removal acceptance test. Those remain the later task gates.
 

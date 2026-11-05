@@ -212,11 +212,18 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
     live_runtime, claims, sign, monkeypatch
 ):
     # Optional test dependency only; the gateway never terminates WebRTC media.
+    from aioice.ice import get_host_addresses
     from aiortc import AudioStreamTrack, RTCConfiguration, RTCPeerConnection, RTCSessionDescription
 
-    # Deterministic host-only candidate; no interface enumeration is required
-    # in restricted CI/cloud runners. Both peers and Janus share the namespace.
-    monkeypatch.setattr("aioice.ice.get_host_addresses", lambda **kwargs: ["127.0.0.1"])
+    # Use the same local interfaces Janus can see. Restricted cloud runners may
+    # prohibit enumeration and expose only loopback; no STUN/TURN is required.
+    def local_addresses(**kwargs):
+        try:
+            return get_host_addresses(**kwargs) or ["127.0.0.1"]
+        except PermissionError:
+            return ["127.0.0.1"]
+
+    monkeypatch.setattr("aioice.ice.get_host_addresses", local_addresses)
 
     runtime, _server, meeting, app = live_runtime
     browsers = [
