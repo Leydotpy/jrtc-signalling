@@ -63,6 +63,10 @@ Lobby cannot call media operations. Publisher/subscriber scopes and current
 microphone/camera/screen grants are checked separately. SG-08 reconciles declared
 tracks with active SDP media sections and applies grants to the Janus handle.
 This validates MID/kind/source permissions, not capture-device provenance.
+SG-09 additionally binds trickle to accepted SDP ICE credentials, current negotiation
+and handle ownership. Restart makes a fresh authority preflight; the final batch
+and completion recheck the local authority revision and owner fence between sends.
+This retains the existing remote-authority cache limitation described above.
 
 ## Resource and failure budgets
 

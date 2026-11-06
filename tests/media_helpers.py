@@ -10,7 +10,7 @@ from jrtc_signalling.sdp import sections
 from jrtc_signalling.websocket_auth import PROTOCOL
 
 
-def sdp(direction="sendonly", kinds=("audio",), mids=None):
+def sdp(direction="sendonly", kinds=("audio",), mids=None, *, ice="sg08"):
     mids = mids or [str(i) for i in range(len(kinds))]
     lines = [
         "v=0",
@@ -29,8 +29,8 @@ def sdp(direction="sendonly", kinds=("audio",), mids=None):
                 f"a={direction}",
                 "a=rtcp-mux",
                 f"a=rtpmap:{pt} {codec}",
-                "a=ice-ufrag:sg08",
-                "a=ice-pwd:sg08syntheticpassword123456",
+                f"a=ice-ufrag:{ice}",
+                f"a=ice-pwd:{ice}syntheticpassword123456",
                 "a=fingerprint:sha-256 " + ":".join(["AB"] * 32),
                 "a=setup:actpass",
                 "a=ssrc:12345 cname:sg08",
@@ -130,6 +130,7 @@ class MockJanus:
         self.next_id, self.connection, self.block = 2**53 + 100, None, None
         self.entered, self.release = asyncio.Event(), asyncio.Event()
         self.webrtc_up = True
+        self.trickle_error = False
         self.mutate_response = lambda result: result
 
     async def handler(self, connection):
@@ -163,6 +164,21 @@ class MockJanus:
             await self.send({**base, "janus": "success", "data": {"id": self.next_id}})
             return
         if command in {"keepalive", "trickle"}:
+            if command == "trickle":
+                if self.block == "trickle":
+                    self.entered.set()
+                    await self.release.wait()
+                if self.trickle_error is True or (
+                    self.trickle_error == "completion" and "candidate" in request
+                ):
+                    await self.send(
+                        {
+                            **base,
+                            "janus": "error",
+                            "error": {"code": 466, "reason": "Synthetic ICE error"},
+                        }
+                    )
+                    return
             await self.send({**base, "janus": "ack"})
             return
         if command in {"detach", "destroy", "hangup"}:
@@ -215,6 +231,15 @@ class MockJanus:
         elif method == "join":
             handle["room"], handle["targets"] = body["room"], body["streams"]
             data = {"videoroom": "attached", "room": body["room"], "streams": self.layout(handle)}
+            jsep = self.offer(handle)
+        elif method == "configure" and "targets" in handle:
+            handle["ice"] = "sg09" + str(uuid4()).replace("-", "")
+            data = {
+                "videoroom": "event",
+                "room": handle["room"],
+                "configured": "ok",
+                "streams": self.layout(handle),
+            }
             jsep = self.offer(handle)
         elif method in {"publish", "configure"}:
             data = {"videoroom": "event", "room": handle["room"], "configured": "ok"}
@@ -271,5 +296,8 @@ class MockJanus:
     def offer(self, handle):
         return {
             "type": "offer",
-            "sdp": sdp(kinds=[self.feeds[t["feed"]][t["mid"]] for t in handle["targets"]]),
+            "sdp": sdp(
+                kinds=[self.feeds[t["feed"]][t["mid"]] for t in handle["targets"]],
+                ice=handle.get("ice", "sg08"),
+            ),
         }

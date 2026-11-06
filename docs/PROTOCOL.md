@@ -1,8 +1,8 @@
 # Signalling v1 contract
 
-Status: SG-08. Shapes, bounded parsing, authentication, signed command delivery
-and opt-in publisher/subscriber dispatch are implemented. ICE batching/restart,
-domain projection, SSE, physical command enforcement and client cutover remain
+Status: SG-09. Shapes, bounded parsing, authentication, signed command delivery,
+opt-in media dispatch and ordered ICE/restart are implemented. Domain projection,
+SSE, physical command enforcement and client cutover remain
 later gates. See [media enablement and exact limits](MEDIA_SIGNALLING.md).
 This document and the exported schemas supersede the imported draft for this
 service. They do not change any current SDK method or Django endpoint.
@@ -37,8 +37,9 @@ and time-window constraints, which JSON Schema cannot express.
   match. Old callbacks and candidates reject with `STALE_NEGOTIATION`.
 - Maximum message: 128 KiB UTF-8; ICE payload: 64 KiB, at most 32 candidates.
   Empty candidates require `completed=true`; booleans are not coerced. v1 uses
-  only plural `candidates`. The SG-12 legacy adapter may normalize a singular
-  candidate before this boundary. Never accept both forms together.
+  plural `candidates` internally. A temporary wire-decoder shim accepts singular
+  `candidate` and defaults its omitted completion to false. Mixed forms reject.
+  See [ICE credential binding, ordering and restart](ICE_SIGNALLING.md).
 - Implemented budgets: authenticate in 5 s; one active operation per connection,
   16 across the worker; 8 queued requests and 16 replies/notifications; separate
   256 KiB request/reply/replay caps. The response cache holds at most 64 records.
@@ -50,7 +51,8 @@ and time-window constraints, which JSON Schema cannot express.
 
 Source paths and exact SHAs are recorded in [SG-00](implementation/tracking/reports/SG-00.md).
 This maps the v1 server operations to the future client transport adapter;
-synq.js itself is unchanged. ICE operations still return `NOT_IMPLEMENTED`.
+synq.js itself is unchanged. Its existing batcher is exercised by pinned fixtures;
+the browser transport adapter remains SG-12.
 
 | Current MeetingConnection call / Socket.IO event | v1 gateway operation | Payload and response |
 | --- | --- | --- |

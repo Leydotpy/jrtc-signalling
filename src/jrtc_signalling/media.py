@@ -13,12 +13,14 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from jrtc.models.base import Jsep
+from jrtc.models.request import TrickleCandidate
 from jrtc_video import (
     PublisherConfigureRequest,
     PublisherJoinAndConfigureRequest,
     PublisherJoinRequest,
     PublisherStreamControl,
     StreamDescription,
+    SubscriberConfigureRequest,
     SubscriberJoinRequest,
     SubscriberUpdateRequest,
     SubscribeTarget,
@@ -27,9 +29,11 @@ from jrtc_video import (
     VideoRoomDestroyRequest,
     parse_videoroom_response,
 )
+from jrtc_video.models import SubscriberStreamInfo
 
 from .auth import AuthError, AuthorizationSession
 from .contracts import OperationError
+from .ice import IceDescription, IceState, description
 from .janus_runtime import HandleRef, JanusRuntime, janus_id
 from .ownership import OwnershipError
 from .sdp import SOURCES, Section, publisher_tracks, sections, subscriber_answer
@@ -59,6 +63,11 @@ class MediaHandle:
     streams: list[dict[str, Any]] = field(default_factory=list)
     negotiation: str | None = None
     pending_offer: list[Section] | None = None
+    ice: IceState | None = None
+    server_ice: IceDescription | None = None
+    retired_server_ice: set[str] = field(default_factory=set)
+    restarting: bool = False
+    negotiations: int = 0
     seen_jsep: deque[tuple[str | None, str, str]] = field(default_factory=lambda: deque(maxlen=64))
 
 
@@ -365,6 +374,13 @@ class MediaPeer:
             # on a handle whose negotiated state cannot be verified.
             raise OperationError("OUTCOME_UNKNOWN") from None
 
+    @staticmethod
+    def _server_ice(sdp: str) -> IceDescription:
+        try:
+            return description(sdp)
+        except OperationError:
+            raise OperationError("OUTCOME_UNKNOWN") from None
+
     def _publisher_answer(self, sdp: str, tracks: dict[str, dict[str, str]]) -> dict[str, Section]:
         accepted = {
             s.mid: s for s in self._server_sections(sdp) if s.active and s.direction != "inactive"
@@ -390,14 +406,33 @@ class MediaPeer:
                 or section.direction != "sendonly"
             ):
                 raise OperationError("OUTCOME_UNKNOWN")
+        server_ice = self._server_ice(sdp)
+        if handle.server_ice is not None:
+            changed = server_ice.credentials != handle.server_ice.credentials
+            if server_ice.key in handle.retired_server_ice:
+                raise OperationError("STALE_NEGOTIATION")
+            if handle.restarting or changed:
+                try:
+                    server_ice.require_restart(handle.server_ice)
+                except OperationError:
+                    raise OperationError("OUTCOME_UNKNOWN") from None
+                handle.restarting = True
+            if changed:
+                handle.retired_server_ice.add(handle.server_ice.key)
+        if handle.negotiations >= 64:
+            raise OperationError("OVERLOADED")
+        handle.negotiations += 1
+        handle.server_ice = server_ice
         handle.pending_offer, handle.negotiation = offer, str(uuid4())
 
     async def dispatch(self, op: str, payload: dict[str, Any]) -> dict[str, Any]:
         async with self.lock:
             self.check()
-            if op in {"media.trickle", "media.ice_restart"}:
-                raise OperationError("NOT_IMPLEMENTED")  # Ordered ICE matrix is SG-09.
             try:
+                if op == "media.trickle":
+                    return await self._trickle(payload)
+                if op == "media.ice_restart":
+                    return await self._restart(payload)
                 if op.startswith("media.publisher."):
                     return await self._publisher(op, payload)
                 if op in {
@@ -442,9 +477,13 @@ class MediaPeer:
                 None,
             )
             handle.webrtc_ready = False
+            handle.ice, handle.server_ice, handle.restarting = None, None, False
+            handle.retired_server_ice.clear()
             self.hub.topology(self.meeting)
             return self._ack(handle, "unpublish", reply)
         mapped: dict[str, dict[str, str]] = {}
+        client_ice = None
+        next_ice = None
         if op != "media.publisher.join":
             auth = self.authorization
             if auth.grant is None:
@@ -458,6 +497,16 @@ class MediaPeer:
                 raise OperationError("OVERLOADED")
             if op.endswith("configure") and (handle is None or not handle.published):
                 raise OperationError()
+            client_ice = description(payload["offer"]["sdp"])
+            if handle is not None and handle.ice is not None:
+                if handle.restarting and payload["negotiation_id"] != handle.negotiation:
+                    raise OperationError("STALE_NEGOTIATION")
+                if (
+                    handle.restarting
+                    or client_ice.credentials != handle.ice.description.credentials
+                ):
+                    client_ice.require_restart(handle.ice.description)
+            next_ice = IceState.negotiate(client_ice, handle.ice if handle else None)
         room = await self.hub.room(self)
         handle = await self._attach("publisher")
         if op == "media.publisher.join":
@@ -511,6 +560,17 @@ class MediaPeer:
         if answer is None or answer["type"] != "answer" or handle.feed is None:
             raise OperationError("OUTCOME_UNKNOWN")
         accepted = self._publisher_answer(answer["sdp"], mapped)
+        server_ice = self._server_ice(answer["sdp"])
+        assert client_ice is not None
+        if handle.ice is not None and client_ice.credentials != handle.ice.description.credentials:
+            assert handle.server_ice is not None
+            try:
+                server_ice.require_restart(handle.server_ice)
+            except OperationError:
+                raise OperationError("OUTCOME_UNKNOWN") from None
+        assert next_ice is not None
+        handle.ice = next_ice
+        handle.server_ice, handle.restarting = server_ice, False
         handle.tracks = {mid: mapped[mid] for mid in accepted}
         handle.streams = [
             self._stream(
@@ -592,6 +652,10 @@ class MediaPeer:
         streams = []
         mids: set[str] = set()
         for row in rows:
+            # Configured replies expose extension fields as dictionaries; join
+            # and update replies already carry typed SubscriberStreamInfo rows.
+            if isinstance(row, dict):
+                row = SubscriberStreamInfo.model_validate(row)
             feed, mid, feed_mid = janus_id(row.feed_id), row.mid, row.feed_mid
             if (
                 not isinstance(mid, str)
@@ -628,9 +692,85 @@ class MediaPeer:
         ):
             raise OperationError("STALE_NEGOTIATION")
         subscriber_answer(payload["answer"]["sdp"], handle.pending_offer)
+        client_ice = description(payload["answer"]["sdp"])
+        if handle.restarting and handle.ice is not None:
+            client_ice.require_restart(handle.ice.description)
+        next_ice = IceState.negotiate(client_ice, handle.ice)
         reply = await self._call(handle, "start", answer=Jsep(**payload["answer"]))
+        handle.ice = next_ice
+        handle.restarting = False
         handle.pending_offer = None
         return self._ack(handle, "start", reply)
+
+    async def _trickle(self, payload: dict[str, Any]) -> dict[str, Any]:
+        handle = self.handles.get(payload["handle_type"])
+        if (
+            handle is None
+            or handle.ice is None
+            or handle.restarting
+            or handle.pending_offer is not None
+            or payload["negotiation_id"] != handle.negotiation
+        ):
+            raise OperationError("STALE_NEGOTIATION")
+        candidates, size = handle.ice.prepare(payload["candidates"])
+        if handle.ice.completed:
+            return self._ack(handle, "noop")
+        batch = [TrickleCandidate.model_validate(c) for c in candidates]
+        revision = self.authorization.revision
+
+        def fence() -> None:
+            self.check()
+            if self.authorization.revision != revision:
+                raise AuthError("STALE_AUTHORIZATION")
+
+        async def send(plugin: Any) -> None:
+            # One owner-locked deadline spans the entire batch and completion.
+            # Uncertain ACK, cancellation or fencing failure disposes the handle
+            # through registry.invoke and must never send a false completion.
+            if batch:
+                reply = await plugin.trickle(batch)
+                if getattr(reply, "janus", None) != "ack":
+                    raise OperationError("OUTCOME_UNKNOWN")
+                fence()
+            if payload["completed"]:
+                reply = await plugin.complete_trickle()
+                if getattr(reply, "janus", None) != "ack":
+                    raise OperationError("OUTCOME_UNKNOWN")
+                fence()
+
+        await self.runtime.registry.invoke(handle.ref, send)
+        fence()
+        handle.ice.count += len(batch)
+        handle.ice.bytes += size
+        handle.ice.completed = payload["completed"]
+        return self._ack(handle, "trickle")
+
+    async def _restart(self, payload: dict[str, Any]) -> dict[str, Any]:
+        handle = self.handles.get(payload["handle_type"])
+        if (
+            handle is None
+            or handle.ice is None
+            or handle.restarting
+            or handle.pending_offer is not None
+        ):
+            raise OperationError("STALE_NEGOTIATION")
+        handle.restarting = True
+        if handle.ref.role == "publisher":
+            if len(self.used_negotiations) >= 64:
+                raise OperationError("OVERLOADED")
+            # The publisher is the offerer. Reserve a wire negotiation ID; its
+            # next configure/publish must supply freshly generated credentials.
+            handle.negotiation = str(uuid4())
+            return self._ack(handle, "ice_restart")
+        reply = await self._call(
+            handle, "configure_subscriber", SubscriberConfigureRequest(restart=True)
+        )
+        jsep = self._jsep(reply)
+        if jsep is None or jsep["type"] != "offer":
+            raise OperationError("OUTCOME_UNKNOWN")
+        self._subscriber_layout(handle, reply)
+        self._subscriber_offer(handle, jsep["sdp"])
+        return self._ack(handle, "ice_restart", reply)
 
     async def forward_events(self) -> None:
         while True:
@@ -649,6 +789,8 @@ class MediaPeer:
                     if jsep is not None:
                         key = jsep_key(getattr(event, "transaction", None), jsep)
                         if key not in handle.seen_jsep:
+                            if key[0] is not None and any(k[0] == key[0] for k in handle.seen_jsep):
+                                raise OperationError("STALE_NEGOTIATION")
                             if handle.ref.role == "subscriber" and jsep["type"] == "offer":
                                 if handle.pending_offer is not None:
                                     raise OperationError("STALE_NEGOTIATION")
@@ -661,10 +803,17 @@ class MediaPeer:
                                 handle.ref.role != "publisher"
                                 or jsep["type"] != "answer"
                                 or handle.negotiation is None
+                                or handle.restarting
                             ):
                                 raise OperationError("STALE_NEGOTIATION")
                             else:
                                 self._publisher_answer(jsep["sdp"], handle.tracks)
+                                if (
+                                    handle.server_ice is None
+                                    or self._server_ice(jsep["sdp"]).credentials
+                                    != handle.server_ice.credentials
+                                ):
+                                    raise OperationError("STALE_NEGOTIATION")
                             handle.seen_jsep.append(key)
                             self.emit(
                                 "media.jsep",

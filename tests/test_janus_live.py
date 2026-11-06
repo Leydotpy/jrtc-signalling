@@ -208,12 +208,28 @@ async def test_real_janus_loss_recovery_uses_fresh_session_and_handle(live_runti
     assert runtime.manager.metrics["recoveries_completed"] >= 1
 
 
+@pytest.mark.parametrize("path", ["embedded", "trickle", "relay"])
 async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
-    live_runtime, claims, sign, monkeypatch
+    live_runtime, claims, sign, monkeypatch, tmp_path, path
 ):
     # Optional test dependency only; the gateway never terminates WebRTC media.
     from aioice.ice import get_host_addresses
-    from aiortc import AudioStreamTrack, RTCConfiguration, RTCPeerConnection, RTCSessionDescription
+    from aiortc import (
+        AudioStreamTrack,
+        RTCConfiguration,
+        RTCIceServer,
+        RTCPeerConnection,
+        RTCSessionDescription,
+    )
+    from live_ice_helpers import (
+        TurnServer,
+        apply_remote_ice,
+        observe_restart_checks,
+        relay_only,
+        rotate_local_ice,
+        split_trickle,
+        trickle,
+    )
 
     # Use the same local interfaces Janus can see. Restricted cloud runners may
     # prohibit enumeration and expose only loopback; no STUN/TURN is required.
@@ -224,6 +240,17 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
             return ["127.0.0.1"]
 
     monkeypatch.setattr("aioice.ice.get_host_addresses", local_addresses)
+    turn = TurnServer(tmp_path)
+    servers = []
+    if path == "relay":
+        await turn.start()
+        servers = [
+            RTCIceServer(
+                urls=f"turn:127.0.0.1:{turn.port}?transport=udp",
+                username=turn.username,
+                credential=turn.password,
+            )
+        ]
 
     runtime, _server, meeting, app = live_runtime
     browsers = [
@@ -242,18 +269,26 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
     ]
     publisher, subscriber = browsers
     publisher_pc, subscriber_pc = [
-        RTCPeerConnection(RTCConfiguration(iceServers=[])) for _ in range(2)
+        RTCPeerConnection(RTCConfiguration(iceServers=servers)) for _ in range(2)
     ]
     try:
         for browser in browsers:
             assert (await browser.open())["result"]["gateway_owner_id"] == runtime.owner_id
         publisher_pc.addTransceiver(AudioStreamTrack(), direction="sendonly")
+        if path == "relay":
+            relay_only(publisher_pc)
         await publisher_pc.setLocalDescription(await publisher_pc.createOffer())
         payload = publish_payload()
         payload["offer"]["sdp"] = publisher_pc.localDescription.sdp
+        if path != "embedded":
+            payload["offer"]["sdp"], pub_candidates = split_trickle(payload["offer"]["sdp"])
+            if path == "relay":
+                assert all(" typ relay" in c["candidate"] for c in pub_candidates)
         published = (await publisher.request("media.publisher.publish", payload))["result"]
         assert published["jsep"]["type"] == "answer"
         await publisher_pc.setRemoteDescription(RTCSessionDescription(**published["jsep"]))
+        if path != "embedded":
+            await trickle(publisher, "publisher", published, pub_candidates)
         async with asyncio.timeout(10):
             while True:
                 event = await publisher.receive()
@@ -263,8 +298,14 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
         assert joined["jsep"]["type"] == "offer"
         assert joined["selected_streams"][0]["feed"] == published["streams"][0]["janus_feed_id"]
         await subscriber_pc.setRemoteDescription(RTCSessionDescription(**joined["jsep"]))
+        if path == "relay":
+            relay_only(subscriber_pc)
         await subscriber_pc.setLocalDescription(await subscriber_pc.createAnswer())
         answer = subscriber_pc.localDescription.sdp
+        if path != "embedded":
+            answer, sub_candidates = split_trickle(answer)
+            if path == "relay":
+                assert all(" typ relay" in c["candidate"] for c in sub_candidates)
         started = await subscriber.request(
             "media.subscriber.start",
             {
@@ -273,11 +314,62 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
             },
         )
         assert started["result"]["action"] == "start"
-        # Receive a real silent audio frame through Janus with complete host
-        # candidates in SDP; external STUN/TURN and gateway trickle are not used.
+        if path != "embedded":
+            await trickle(subscriber, "subscriber", joined, sub_candidates)
+        # Media travels directly between the test peers, Janus and (for relay)
+        # coturn. SDP has no embedded candidates in either trickle case.
         track = subscriber_pc.getReceivers()[0].track
         frame = await asyncio.wait_for(track.recv(), 10)
         assert frame.samples > 0
+        if path != "embedded":
+            handles_before = set(runtime.registry.bindings)
+            for role, browser, pc in [
+                ("publisher", publisher, publisher_pc),
+                ("subscriber", subscriber, subscriber_pc),
+            ]:
+                restarted = (await browser.request("media.ice_restart", {"handle_type": role}))[
+                    "result"
+                ]
+                connection = rotate_local_ice(pc)
+                checks = observe_restart_checks(connection, monkeypatch)
+                if role == "publisher":
+                    await pc.setLocalDescription(await pc.createOffer())
+                    offer, candidates = split_trickle(pc.localDescription.sdp)
+                    new_payload = publish_payload(negotiation=restarted["negotiation_id"])
+                    new_payload["offer"]["sdp"] = offer
+                    new_result = await browser.request("media.publisher.configure", new_payload)
+                    assert new_result["ok"], new_result.get("error")
+                    remote = new_result["result"]["jsep"]
+                    apply_remote_ice(pc, remote["sdp"])
+                    await pc.setRemoteDescription(RTCSessionDescription(**remote))
+                else:
+                    remote = restarted["jsep"]
+                    apply_remote_ice(pc, remote["sdp"])
+                    await pc.setRemoteDescription(RTCSessionDescription(**remote))
+                    await pc.setLocalDescription(await pc.createAnswer())
+                    answer, candidates = split_trickle(pc.localDescription.sdp)
+                    new_result = await browser.request(
+                        "media.subscriber.start",
+                        {
+                            "answer": {"type": "answer", "sdp": answer},
+                            "negotiation_id": restarted["negotiation_id"],
+                        },
+                    )
+                    assert new_result["ok"], new_result.get("error")
+                await trickle(browser, role, restarted, candidates)
+                await asyncio.wait_for(checks.wait(), 10)
+                if path == "relay":
+                    assert all(" typ relay" in c["candidate"] for c in candidates)
+                    assert connection._nominated
+                    assert all(
+                        pair.local_candidate.type == "relay"
+                        for pair in connection._nominated.values()
+                    )
+            assert set(runtime.registry.bindings) == handles_before
+            # Drain beyond pre-restart buffering and confirm continued RTP.
+            for _ in range(30):
+                frame = await asyncio.wait_for(track.recv(), 10)
+            assert frame.samples > 0
         assert (await subscriber.request("media.subscriber.detach"))["result"]["action"] == "detach"
         assert (await publisher.request("media.publisher.unpublish"))["result"][
             "action"
@@ -293,3 +385,4 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
         for browser in browsers:
             await browser.close()
         await asyncio.gather(publisher_pc.close(), subscriber_pc.close())
+        await turn.close()

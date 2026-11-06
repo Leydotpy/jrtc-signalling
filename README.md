@@ -37,7 +37,8 @@ Use these entrypoints to retain safe logging and WebSocket server limits.
 Settings are read from `JRTC_SIGNALLING_*` environment variables; see
 [.env.example](.env.example). Dotenv files are not loaded automatically.
 No Django settings, Janus URL or broker credentials are needed for the scaffold.
-The rehearsal flag does not enable production readiness or unimplemented ICE operations.
+The rehearsal flag enables media dispatch and [ordered ICE/restart](docs/ICE_SIGNALLING.md);
+production readiness remains closed.
 
 | Endpoint | Scaffold response | Purpose |
 | --- | --- | --- |
@@ -98,7 +99,7 @@ deployment has been created.
 
 ## Next dependency
 
-SG-09 adds ordered ICE batching, completion and restart handling. With the optional runtime
+SG-10 adds gateway lifecycle events and the Django Broka consumer. With the optional runtime
 configured, commands check current ownership but report failed/unavailable until
 physical enforcement is implemented in SG-13. The default enforcer without a
 runtime still reports failed/owner_lost. Follow the

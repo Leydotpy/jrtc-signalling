@@ -1,4 +1,4 @@
-# Media signalling rehearsal (SG-08)
+# Media signalling rehearsal (SG-08/09)
 
 The gateway can dispatch authenticated browser v1 requests directly to the pinned
 JRTC/VideoRoom async SDK. This is an explicit isolated rehearsal, not production
@@ -16,8 +16,8 @@ Browser ingress still requires WSS, the exact allowed Origin and
 `jrtc.signalling.v1`. After the signed ticket and current grant are validated,
 hello returns the real owner ID and lease generation. Lobby and control-only
 connections receive an empty hello result and cannot allocate media handles.
-Readiness remains **503**, with `signalling=rehearsal` when opted in. ICE batching,
-durable presence, live command enforcement, browser routing and acceptance gates
+Readiness remains **503**, with `signalling=rehearsal` when opted in. Durable
+presence, live command enforcement, browser routing and acceptance gates
 are still required before cutover.
 
 One connection owns at most one publisher and one subscriber handle. Handles
@@ -45,7 +45,8 @@ withholds a successful lease release. Crash reconciliation remains SG-15.
 | `media.subscriber.start` | Apply a receive-only answer bound to the outstanding gateway negotiation ID |
 | `media.subscriber.detach` | Dispose the owned subscriber handle |
 | `media.hangup` | Dispose the selected owned handle |
-| `media.trickle`, `media.ice_restart` | Return `NOT_IMPLEMENTED`; SG-09 owns their ordering and restart matrix |
+| `media.trickle` | Forward one validated candidate array, then completion after its ACK; bind to the negotiated SDP and owned handle |
+| `media.ice_restart` | Publisher: reserve an ID for its new offer; subscriber: request a new Janus offer. See [ICE lifecycle](ICE_SIGNALLING.md) |
 
 Publisher offers declare tracks by source/kind/MID. The bounded SDP policy gate
 checks every active audio/video media section against those declarations and the
@@ -70,7 +71,8 @@ An outstanding subscriber offer must be answered before another sync/update.
 Transaction-correlated JSEP is delivered once in its response. The exact
 transaction/type/SDP digest suppresses its duplicated callback; an unrelated
 transaction-bearing unsolicited offer remains deliverable as `media.jsep`.
-Unsolicited SDP is validated against the same handle/layout rules.
+Unsolicited SDP is validated against the same handle/layout rules and current or
+retired ICE credentials. Subscriber negotiations are also bounded to 64 per handle.
 
 Independent fixed-field `media.event` notifications cover readiness, topology,
 media, hangup and detach. Callback handlers only enqueue bounded work and never
@@ -105,6 +107,7 @@ rehearsal must not be treated as production revocation assurance.
 | Completed response replay | 64 records and 256 KiB; hashes only for request contents |
 | Janus event queue | 32 per peer; SDK event drops also close access |
 | SDP | 64 KiB; at most 16 publisher or 256 subscriber media sections |
+| ICE | 32 candidates / 64 KiB per request; 256 candidates / 256 KiB forwarded per ICE generation |
 | Admission wait | 6 seconds across queue and global-capacity wait |
 | External I/O | Existing 2-second authority deadline; each SDK call at most 3 seconds and no later than lease expiry; WebSocket send 2 seconds |
 
@@ -130,8 +133,9 @@ Use the supplied CLI and its safe log formatter; do not enable SDK debug output.
 Wire-level mock Janus tests use the real SDK and ASGI endpoint for correlation,
 publisher/subscriber flows, permissions, event delivery, cancellation, resource
 bounds and uncertainty. The opt-in real service suite additionally uses Janus,
-Redis and two aiortc peers with complete local host candidates in SDP. It checks
-offer/answer/start and receives an actual silent audio frame through Janus.
+Redis and two aiortc peers. It checks embedded candidates, direct trickle and
+TURN-only trickle, receives actual audio through Janus, and restarts both roles
+with fresh credentials and authenticated ICE checks on the same Janus handles.
 aiortc is a test-only dependency; the gateway never transports media.
 
 ```sh
@@ -140,13 +144,15 @@ GATEWAY_TEST_JANUS=1 GATEWAY_TEST_REDIS_URL=redis://127.0.0.1:6379/15 \
   uv run --no-sync pytest -q tests/test_janus_live.py
 ```
 
-The suite starts isolated Janus processes and requires the Janus binary and
-VideoRoom/WebSocket modules. `GATEWAY_TEST_JANUS_LIB_DIR` can select an extracted
-library tree. Test peers use local host candidates, falling back to loopback when
-interface enumeration is prohibited. No external STUN/TURN is used. CI runs
-these tests in its dedicated Janus job.
-This is not a real browser, TURN, batching/restart, frontend, durable presence or
-host-removal acceptance test. Those remain the later task gates.
+The suite requires Janus, its VideoRoom/WebSocket modules and coturn. It starts
+isolated processes; `GATEWAY_TEST_JANUS_LIB_DIR` can select an extracted library
+tree. Test peers use local interfaces, falling back to loopback when enumeration
+is prohibited. Relay tests use authenticated local coturn, require only relay
+candidates and assert relay nomination; no external TURN service is used. CI
+runs these tests in its dedicated Janus job. Test adapters access aioice's relay
+policy and credential rotation because aiortc lacks the corresponding public
+browser APIs. Real-browser routing, durable presence and host-removal acceptance
+remain later task gates.
 
 Rollback: unset `JRTC_SIGNALLING_MEDIA_REHEARSAL` and drain the rehearsal owner.
 No persistent gateway schema, existing meeting route or legacy media path changes.

@@ -8,6 +8,7 @@ in process. Keys and users are temporary test data.
 """
 
 import argparse
+import json
 import os
 import sys
 import uuid
@@ -53,6 +54,29 @@ def main():
             pass
 
     class HandoffTests(GatewayTicketFixture, TestCase):
+        def test_existing_ice_normalizer_matches_client_batch_fixtures(self):
+            from apps.meetings.jrtc.ice import normalize_ice_request
+
+            fixtures = json.loads(
+                (Path(__file__).resolve().parents[1] / "tests/fixtures/client-ice.json").read_text()
+            )
+            for case in fixtures["cases"]:
+                for batch in case["batches"]:
+                    normalized = normalize_ice_request(batch)
+                    self.assertEqual(normalized.completed, batch["completed"])
+                    self.assertEqual(
+                        [
+                            c.model_dump(exclude_none=True, by_alias=True)
+                            for c in normalized.candidates
+                        ],
+                        [
+                            {k: v for k, v in c.items() if k != "usernameFragment"}
+                            for c in batch["candidates"]
+                        ],
+                    )
+            candidate = fixtures["cases"][0]["batches"][0]["candidates"][0]
+            self.assertEqual(len(normalize_ice_request({"candidate": candidate}).candidates), 1)
+
         def verifier(self):
             return TicketVerifier(
                 AuthConfig(

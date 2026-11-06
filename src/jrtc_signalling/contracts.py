@@ -102,12 +102,19 @@ def _semantics(name: str, message: dict[str, Any]) -> None:
     elif name == "state-notification":
         if message["projection_version"] != message["previous_version"] + 1:
             raise ContractError("Invalid projection version transition.")
-    elif (
-        name == "request"
-        and message["op"] == "media.trickle"
-        and len(json.dumps(message["payload"], ensure_ascii=False).encode()) > MAX_ICE_PAYLOAD_BYTES
-    ):
-        raise ContractError("ICE payload exceeds the byte limit.")
+    elif name == "request" and message["op"] == "media.trickle":
+        from .ice import candidate_fragment
+
+        if (
+            len(json.dumps(message["payload"], ensure_ascii=False, separators=(",", ":")).encode())
+            > MAX_ICE_PAYLOAD_BYTES
+        ):
+            raise ContractError("ICE payload exceeds the byte limit.")
+        try:
+            for candidate in message["payload"]["candidates"]:
+                candidate_fragment(candidate)
+        except OperationError:
+            raise ContractError("Malformed ICE candidate.") from None
 
 
 def decode_message(raw: str | bytes, *, schema: str = "request") -> dict[str, Any]:
@@ -127,6 +134,13 @@ def decode_message(raw: str | bytes, *, schema: str = "request") -> dict[str, An
         )
     except (ValueError, UnicodeError, RecursionError):
         raise ContractError("Invalid or oversized JSON message.") from None
+    # Temporary legacy shim at the wire boundary only. Canonical v1 schemas and
+    # internal messages stay plural. Mixed forms still fail schema validation.
+    if schema == "request" and isinstance(message, dict) and message.get("op") == "media.trickle":
+        payload = message.get("payload")
+        if isinstance(payload, dict) and "candidate" in payload and "candidates" not in payload:
+            payload["candidates"] = [payload.pop("candidate")]
+            payload.setdefault("completed", False)
     return validate_message(message, schema=schema)
 
 

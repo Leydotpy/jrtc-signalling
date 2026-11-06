@@ -1,0 +1,267 @@
+{
+  "repository": "Leydotpy/synq.js",
+  "revision": "6521187857da9f8d9223e67b445d71114e935ab0",
+  "source_sha256": "63087f90a331369d4885b89995af9250a3e4f216e8d5151cd3098117703f0df0",
+  "cases": [
+    {
+      "name": "single",
+      "batches": [
+        {
+          "candidates": [
+            {
+              "candidate": "candidate:1 1 udp 1 192.0.2.1 4001 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            }
+          ],
+          "completed": false
+        }
+      ]
+    },
+    {
+      "name": "sixteen",
+      "batches": [
+        {
+          "candidates": [
+            {
+              "candidate": "candidate:1 1 udp 1 192.0.2.1 4001 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:2 1 udp 1 192.0.2.1 4002 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:3 1 udp 1 192.0.2.1 4003 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:4 1 udp 1 192.0.2.1 4004 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:5 1 udp 1 192.0.2.1 4005 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:6 1 udp 1 192.0.2.1 4006 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:7 1 udp 1 192.0.2.1 4007 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:8 1 udp 1 192.0.2.1 4008 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:9 1 udp 1 192.0.2.1 4009 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:10 1 udp 1 192.0.2.1 4010 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:11 1 udp 1 192.0.2.1 4011 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:12 1 udp 1 192.0.2.1 4012 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:13 1 udp 1 192.0.2.1 4013 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:14 1 udp 1 192.0.2.1 4014 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:15 1 udp 1 192.0.2.1 4015 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:16 1 udp 1 192.0.2.1 4016 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            }
+          ],
+          "completed": false
+        }
+      ]
+    },
+    {
+      "name": "final-three",
+      "batches": [
+        {
+          "candidates": [
+            {
+              "candidate": "candidate:1 1 udp 1 192.0.2.1 4001 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:2 1 udp 1 192.0.2.1 4002 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:3 1 udp 1 192.0.2.1 4003 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:4 1 udp 1 192.0.2.1 4004 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:5 1 udp 1 192.0.2.1 4005 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:6 1 udp 1 192.0.2.1 4006 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:7 1 udp 1 192.0.2.1 4007 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:8 1 udp 1 192.0.2.1 4008 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:9 1 udp 1 192.0.2.1 4009 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:10 1 udp 1 192.0.2.1 4010 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:11 1 udp 1 192.0.2.1 4011 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:12 1 udp 1 192.0.2.1 4012 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:13 1 udp 1 192.0.2.1 4013 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:14 1 udp 1 192.0.2.1 4014 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:15 1 udp 1 192.0.2.1 4015 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:16 1 udp 1 192.0.2.1 4016 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            }
+          ],
+          "completed": false
+        },
+        {
+          "candidates": [
+            {
+              "candidate": "candidate:17 1 udp 1 192.0.2.1 4017 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:18 1 udp 1 192.0.2.1 4018 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            },
+            {
+              "candidate": "candidate:19 1 udp 1 192.0.2.1 4019 typ host",
+              "sdpMid": "0",
+              "sdpMLineIndex": 0,
+              "usernameFragment": "sg08"
+            }
+          ],
+          "completed": true
+        }
+      ]
+    },
+    {
+      "name": "empty-complete",
+      "batches": [
+        {
+          "candidates": [],
+          "completed": true
+        }
+      ]
+    }
+  ]
+}
