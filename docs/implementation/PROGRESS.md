@@ -18,9 +18,20 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-08 Media signalling | DONE | [Report](tracking/reports/SG-08.md), implementation `fb0d048932be369fb50c7305b0f35ad6df409f9d`, fixes through `f24631887cf06b73a219e17119f793be37d68dc5` |
 | SG-09 Ordered ICE/restart | DONE | [Report](tracking/reports/SG-09.md), implementation `ee8999b0f987f9cdfe4513adb419291970a246bd`, CI portability fix `1baf2fc221e7b84e50c7b861738964d08de74e91` |
 | SG-10 Lifecycle events | DONE | [Report](tracking/reports/SG-10.md), gateway `16a3272ca4625b133f24dbbf0e8fdd1e036c8694`; Synq `a4ea69571bd9f21e8301f1b656ebce626b9c392f` |
-| SG-11–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-11 State projection/SSE | DONE | [Report](tracking/reports/SG-11.md), Synq `2cd29394081243cc0be9feb62d7359f5a3dcf041` |
+| SG-12–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
+
+SG-11 passed **228 Synq tests** locally against PostgreSQL 16.2/Redis, zero skips,
+and both actual Janus integrations: the existing lifecycle path and the new
+Janus -> Broka -> Django projection -> authenticated HTTP snapshot/SSE path.
+[Synq CI 42308160215](https://github.com/Leydotpy/synq/actions/runs/42308160215)
+passed the same 228 tests on PostgreSQL 16/Redis 7.4, both live integrations,
+targeted Ruff checks and migration drift. [The report](tracking/reports/SG-11.md)
+records exact commands, timing, initial harness corrections and limits. The gateway
+package pin is unchanged; no frontend cutover or deployment occurred.
+
 
 SG-10 passed **486 gateway tests** locally with real Janus 1.1.2, Redis 7.0.15
 and coturn 4.6.1, with zero skips. **198 Synq tests** passed against PostgreSQL
@@ -48,11 +59,14 @@ complete observations, retries/reconciles broker failures and records authentica
 snapshots in Django. SDP/ICE never enters Broka or Django; observation events never
 change admission, roles, permissions or joined_at.
 
-Both lifecycle flags remain off by default and readiness stays 503. Public presence
-projection/SSE, frontend transport integration, physical moderation, resumed
-sessions and reconciled failover remain later tasks. Uncertain media cleanup keeps
-its existing conservative lease fence; SG-10 does not authorize takeover.
+Optional Django projection and authenticated SSE/snapshots now provide monotonic,
+permission-filtered state, replay/snapshot repair and disposable Redis presence.
+Admission remains independent of observed connection. Lifecycle and state flags
+remain off by default and gateway readiness stays 503. Frontend integration,
+physical moderation, resumed sessions and reconciled failover remain later tasks.
+Uncertain media cleanup retains its conservative lease fence; SG-11 does not
+authorize takeover or change media transport.
 
-SG-00–SG-10 are complete for their stated scopes and committed on feature branches.
-Next: **SG-11 — Django presence projection and SSE**. Eight tasks remain,
-SG-11–SG-18. No production routing, merge or deployment has changed.
+SG-00–SG-11 are complete for their stated scopes and committed on feature branches.
+Next: **SG-12 — Client transport adapter and Django SSE integration**. Seven tasks
+remain, SG-12–SG-18. No production routing, merge or deployment has changed.

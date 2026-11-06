@@ -168,14 +168,16 @@
     {
       "id": "SG-11",
       "title": "Django projection and frontend state notifications",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "dependencies": [
         "SG-10"
       ],
       "repos": "synq",
-      "report": null,
-      "commits": {},
-      "last_updated": null
+      "report": "tracking/reports/SG-11.md",
+      "commits": {
+        "synq": "2cd29394081243cc0be9feb62d7359f5a3dcf041"
+      },
+      "last_updated": "2026-11-06T22:57:10.974180+00:00"
     },
     {
       "id": "SG-12",
