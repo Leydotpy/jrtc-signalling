@@ -138,14 +138,16 @@
     {
       "id": "SG-09",
       "title": "Batched ICE, completion, and JSEP ordering",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "dependencies": [
         "SG-08"
       ],
       "repos": "gateway + synq.js fixtures",
-      "report": null,
-      "commits": {},
-      "last_updated": null
+      "report": "tracking/reports/SG-09.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "1baf2fc221e7b84e50c7b861738964d08de74e91"
+      },
+      "last_updated": "2026-11-06T11:52:33.873317+00:00"
     },
     {
       "id": "SG-10",
