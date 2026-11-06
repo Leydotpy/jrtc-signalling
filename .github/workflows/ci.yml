@@ -63,20 +63,9 @@ jobs:
           dpkg-query --show janus coturn
       - run: uv sync --locked --group dev --group media-test --extra runtime
       - run: uv run --no-sync pytest -q tests/test_janus_live.py
-  client-ice-compatibility:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: Leydotpy/synq.js
-          ref: 6521187857da9f8d9223e67b445d71114e935ab0
-          path: client-compatibility
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "24"
-      - run: node --experimental-transform-types scripts/check_client_ice.cjs client-compatibility
+  # The private synq.js checkout is verified with scripts/check_client_ice.cjs
+  # in an authorized local workspace. Its generated fixtures run across the
+  # real SDK in each verify job; no cross-repository token is needed by CI.
   authority-compatibility:
     runs-on: ubuntu-latest
     timeout-minutes: 15

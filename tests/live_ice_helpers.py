@@ -10,8 +10,9 @@ from jrtc_signalling.ice import description
 
 
 class TurnServer:
-    def __init__(self, directory):
+    def __init__(self, directory, relay_address):
         self.directory, self.process = directory, None
+        self.relay_address = relay_address
         self.username, self.password = "sg09", secrets.token_hex(24)
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
@@ -21,7 +22,7 @@ class TurnServer:
         assert shutil.which("turnserver"), "Install coturn to run the opted-in relay tests"
         config = self.directory / "turn.conf"
         config.write_text(
-            "listening-ip=127.0.0.1\nrelay-ip=127.0.0.1\n"
+            f"listening-ip=127.0.0.1\nrelay-ip={self.relay_address}\n"
             f"listening-port={self.port}\nrealm=sg09.test\n"
             f"user={self.username}:{self.password}\nlt-cred-mech\nfingerprint\n"
             "no-tls\nno-dtls\nno-cli\nno-multicast-peers\n"

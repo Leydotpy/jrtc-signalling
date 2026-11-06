@@ -103,8 +103,11 @@ No Synq, synq.js or SDK source is modified.
 node --experimental-transform-types scripts/check_client_ice.cjs /path/to/pinned/synq.js
 ```
 
-Node 24 is used in CI. The fixture generator's `--write` mode is for deliberate
-baseline updates; normal validation also checks the source SHA-256. Real service
+Run with Node 24 in a workspace authorized to read the pinned private client
+source. The gateway CI token cannot read that repository, so CI consumes the
+generated fixtures across the real SDK in every Python matrix job. The generator's
+`--write` mode is for deliberate baseline updates; normal validation also checks
+the source SHA-256. Real service
 coverage and its test-only aiortc adapters are described in
 [media verification](MEDIA_SIGNALLING.md#verification-and-limits).
 

@@ -232,7 +232,7 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
     )
 
     # Use the same local interfaces Janus can see. Restricted cloud runners may
-    # prohibit enumeration and expose only loopback; no STUN/TURN is required.
+    # prohibit enumeration and expose only loopback.
     def local_addresses(**kwargs):
         try:
             return get_host_addresses(**kwargs) or ["127.0.0.1"]
@@ -240,7 +240,10 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
             return ["127.0.0.1"]
 
     monkeypatch.setattr("aioice.ice.get_host_addresses", local_addresses)
-    turn = TurnServer(tmp_path)
+    # Janus uses real host interfaces on normal runners; a loopback relay can
+    # fail its candidate pairing there. Keep the TURN listener private while
+    # allocating relays on an interface shared with the local Janus process.
+    turn = TurnServer(tmp_path, local_addresses(use_ipv4=True, use_ipv6=False)[0])
     servers = []
     if path == "relay":
         await turn.start()
