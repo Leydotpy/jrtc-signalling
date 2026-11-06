@@ -357,6 +357,17 @@ async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
         track = subscriber_pc.getReceivers()[0].track
         frame = await asyncio.wait_for(track.recv(), 10)
         assert frame.samples > 0
+        # Receive-only audio is an audio connection, with no publishing flags.
+        observation = next(
+            c
+            for c in runtime.lifecycle.connections.values()
+            if c.body["participant_session_id"] == subscriber.claims["participant_session_id"]
+        )
+        async with asyncio.timeout(5):
+            while observation.body["snapshot"]["connection"] != "MEDIA_CONNECTED":  # noqa: ASYNC110 - off-loop durable commit
+                await asyncio.sleep(0.01)
+        assert observation.body["data"]["media_kind"] == "audio"
+        assert not any(observation.body["snapshot"][key] for key in ("audio", "video", "screen"))
         if path != "embedded":
             handles_before = set(runtime.registry.bindings)
             for role, browser, pc in [

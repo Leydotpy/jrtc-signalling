@@ -439,7 +439,16 @@ class SocketSession:
                         if state["video"]
                         else "screen"
                         if state["screen"]
-                        else "data"
+                        else next(
+                            (
+                                stream["media_kind"]
+                                for handle in handles.values()
+                                if handle.webrtc_ready
+                                for stream in handle.streams
+                                if stream["is_active"]
+                            ),
+                            "data",
+                        )
                     },
                 )
         elif handles:
