@@ -219,6 +219,7 @@ class MediaPeer:
         self.closed = False
         self.overflow = False
         self.used_negotiations: set[str] = set()
+        self.observe: Callable[[], Any] | None = None
 
     def check(self) -> None:
         auth = self.authorization
@@ -830,6 +831,8 @@ class MediaPeer:
                         for stream in handle.streams:
                             stream["is_ready"] = stream["is_active"]
                         self.hub.topology(self.meeting)
+                        if self.observe is not None:
+                            await self.observe()
                     if kind == "event":
                         kind = "topology_changed"
                     if kind in {"webrtcup", "media", "hangup", "detached", "topology_changed"}:

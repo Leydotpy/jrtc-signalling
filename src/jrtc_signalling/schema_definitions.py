@@ -410,6 +410,57 @@ COMMAND_OUTCOME = obj(
         "reason_code": REASON,
     }
 )
+OBSERVATION = obj(
+    {
+        "connection": {
+            "enum": [
+                "OFFLINE",
+                "LOBBY_CONNECTED",
+                "SIGNALING_CONNECTED",
+                "MEDIA_CONNECTING",
+                "MEDIA_CONNECTED",
+                "RECOVERING",
+            ]
+        },
+        "audio": BOOL,
+        "video": BOOL,
+        "screen": BOOL,
+    },
+    allOf=[
+        {
+            "if": {"properties": {"connection": {"not": {"const": "MEDIA_CONNECTED"}}}},
+            "then": {
+                "properties": {name: {"const": False} for name in ("audio", "video", "screen")}
+            },
+        }
+    ],
+)
+LIFECYCLE_DATA = {
+    name: data
+    for name, data in EVENT_DATA.items()
+    if name not in {"participant.removal_enforced", "meeting.resources_terminated"}
+}
+LIFECYCLE_DATA["participant.signaling_connected"] = EMPTY
+LIFECYCLE_EVENT = domain_message("event", LIFECYCLE_DATA)
+LIFECYCLE_EVENT["properties"].update(generation=SEQUENCE, snapshot=OBSERVATION)
+LIFECYCLE_EVENT["required"].extend(["generation", "snapshot"])
+LIFECYCLE_EVENT["allOf"] = [
+    {
+        "if": {"properties": {"type": {"const": name}}},
+        "then": {"properties": {"snapshot": {"properties": {"connection": {"const": state}}}}},
+    }
+    for name, state in {
+        "participant.lobby_connected": "LOBBY_CONNECTED",
+        "participant.signaling_connected": "SIGNALING_CONNECTED",
+        "participant.media_connecting": "MEDIA_CONNECTING",
+        "participant.media_connected": "MEDIA_CONNECTED",
+        "participant.media_disconnected": "SIGNALING_CONNECTED",
+        "participant.media_publishing_changed": "MEDIA_CONNECTED",
+        "participant.signaling_disconnected": "OFFLINE",
+        "gateway.session_lost": "RECOVERING",
+        "gateway.recovery_failed": "OFFLINE",
+    }.items()
+]
 TICKET = obj(
     {
         "iss": text(256, minimum=1),
@@ -474,6 +525,7 @@ SCHEMAS = {
         "notification": NOTIFICATION,
         "command": domain_message("command", COMMAND_DATA),
         "event": domain_message("event", EVENT_DATA),
+        "lifecycle-event": LIFECYCLE_EVENT,
         "command-outcome": COMMAND_OUTCOME,
         "ticket-claims": TICKET,
         "ticket-header": TICKET_HEADER,

@@ -20,6 +20,7 @@ from .ownership import OwnershipError
 from .schema_definitions import REQUEST_PAYLOADS
 
 if TYPE_CHECKING:
+    from .lifecycle_events import ObservationConnection
     from .media import MediaPeer
     from .websocket_auth import AuthenticatedEndpoint
 
@@ -89,6 +90,8 @@ class SocketSession:
         self.sequence = 2
         self.event_sequence = 0
         self.peer: MediaPeer | None = None
+        self.observation: ObservationConnection | None = None
+        self.transport_lost = False
         self.failure = asyncio.Event()
         self.metrics = endpoint.metrics
 
@@ -253,6 +256,13 @@ class SocketSession:
         if self.peer is not None:
             self.peer.authorization = fresh
             self.peer.check()
+        if self.observation is not None:
+            await self.observation.record(
+                self.observation.body["type"],
+                self.observation.body["snapshot"],
+                self.observation.body["data"],
+                epoch=claims["authorization_epoch"],
+            )
 
     async def _worker(self) -> None:
         while True:
@@ -291,6 +301,8 @@ class SocketSession:
                             raise OperationError("UNAVAILABLE")
                         await self.peer.authorize(op, request["payload"])
                         result = await self.peer.dispatch(op, request["payload"])
+                        if op != "media.trickle":
+                            await self.observe_media()
                     else:
                         raise AuthError("FORBIDDEN")
                     self._reply(request, result)
@@ -323,6 +335,7 @@ class SocketSession:
                 and "lobby" not in self.authorization.claims["scopes"]
             ):
                 self.peer = self.endpoint.media.open(self.authorization, self.notify)
+                self.peer.observe = self.observe_media
                 result = {
                     "participant_id": self.peer.participant,
                     "scopes": self.authorization.claims["scopes"],
@@ -330,6 +343,15 @@ class SocketSession:
                     "gateway_owner_id": self.peer.runtime.owner_id,
                     "gateway_generation": self.peer.generation,
                 }
+            runtime = self.endpoint.event_runtime
+            if runtime is not None:
+                lease = runtime.leases.get(self.authorization.claims["meeting_id"])
+                if lease is None:
+                    raise OwnershipError("Observation owner unavailable.")
+                runtime.require(self.authorization.claims["meeting_id"], lease.generation)
+                self.observation = await runtime.lifecycle.open(
+                    self.authorization.claims, lease.generation, hello["id"]
+                )
             self._reply(hello, result)
             tasks = [
                 asyncio.create_task(coro)
@@ -347,6 +369,7 @@ class SocketSession:
                 task.result()
             raise CloseSession(1013)
         except OwnershipError:
+            self.transport_lost = True
             raise CloseSession(1012) from None
         except OperationError as exc:
             raise CloseSession(1013 if exc.code == "OVERLOADED" else 1012) from None
@@ -373,3 +396,56 @@ class SocketSession:
         await asyncio.gather(*tasks, return_exceptions=True)
         if self.peer is not None:
             await self.peer.aclose()
+        if self.observation is not None:
+            await self.observation.close(lost=self.transport_lost)
+
+    async def observe_media(self) -> None:
+        if self.observation is None or self.peer is None:
+            return
+        from .lifecycle_events import snapshot
+
+        handles = self.peer.handles
+        ready = any(h.webrtc_ready for h in handles.values())
+        state = snapshot(
+            "MEDIA_CONNECTED" if ready else "MEDIA_CONNECTING" if handles else "SIGNALING_CONNECTED"
+        )
+        publisher = handles.get("publisher")
+        if publisher and publisher.published and publisher.webrtc_ready:
+            for track in publisher.tracks.values():
+                source = track["source"]
+                state[
+                    "screen"
+                    if source.startswith("screen_share")
+                    else "audio"
+                    if source == "microphone"
+                    else "video"
+                ] = True
+        if (
+            state == self.observation.body["snapshot"]
+            and self.authorization.claims["authorization_epoch"]
+            == self.observation.body["authorization_epoch"]
+        ):
+            return
+        if ready:
+            kind = "participant.media_publishing_changed"
+            data = {k: state[k] for k in ("audio", "video", "screen")}
+            if self.observation.body["snapshot"]["connection"] != "MEDIA_CONNECTED":
+                kind, data = (
+                    "participant.media_connected",
+                    {
+                        "media_kind": "audio"
+                        if state["audio"]
+                        else "video"
+                        if state["video"]
+                        else "screen"
+                        if state["screen"]
+                        else "data"
+                    },
+                )
+        elif handles:
+            kind, data = "participant.media_connecting", {"handle_type": next(iter(handles))}
+        else:
+            kind, data = "participant.media_disconnected", {"reason_code": "requested"}
+        await self.observation.record(
+            kind, state, data, epoch=self.authorization.claims["authorization_epoch"]
+        )

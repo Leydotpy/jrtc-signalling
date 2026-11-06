@@ -28,8 +28,8 @@ def create_app(
     authentication = auth_config
     if authentication is None and selected.auth_config_file:
         authentication = AuthConfig.read(selected.auth_config_file)
-    if selected.media_rehearsal and authentication is None:
-        raise ConfigurationError("Media rehearsal requires authentication.")
+    if (selected.media_rehearsal or selected.lifecycle_events) and authentication is None:
+        raise ConfigurationError("Media rehearsal and lifecycle events require authentication.")
     factory: Callable[[], Runtime] = runtime_factory or ScaffoldRuntime
     if runtime_factory is None and selected.bus_config_file:
         try:
@@ -51,6 +51,15 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
         lifecycle = Lifecycle(factory(), selected)
+        event_runtime = None
+        if selected.lifecycle_events:
+            from .janus_runtime import JanusRuntime
+            from .lifecycle_events import LifecyclePublisher
+
+            if not isinstance(lifecycle.runtime, JanusRuntime):
+                raise ConfigurationError("Lifecycle events require fenced Janus runtime.")
+            event_runtime = lifecycle.runtime
+            event_runtime.lifecycle = LifecyclePublisher(event_runtime.bus)
         app.state.lifecycle = lifecycle
         await lifecycle.start()
         try:
@@ -64,7 +73,11 @@ def create_app(
                         raise ConfigurationError("Media rehearsal requires fenced Janus runtime.")
                     media = MediaHub(lifecycle.runtime)
                 app.state.auth_endpoint = AuthenticatedEndpoint(
-                    authentication, selected, authority_factory(authentication), media
+                    authentication,
+                    selected,
+                    authority_factory(authentication),
+                    media,
+                    event_runtime=event_runtime,
                 )
             yield
         finally:

@@ -21,6 +21,7 @@ from .contracts import ContractError, _no_duplicates, _reject_constant, validate
 
 COMMANDS = "synq.signalling.commands.v1"
 EVENTS = "synq.signalling.events.v1"
+LIFECYCLE = "synq.signalling.lifecycle.v1"
 MAX_PACKET = 32 * 1024
 ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 
@@ -128,7 +129,7 @@ def _validate_body(message: dict[str, Any], kind: str) -> dict[str, Any]:
         from .ownership import validate_owner_request
 
         return validate_owner_request(message)
-    if kind not in {"command", "command-outcome"}:
+    if kind not in {"command", "command-outcome", "lifecycle-event"}:
         raise BusError("Unsupported control message.")
     return validate_message(message, schema=kind)
 

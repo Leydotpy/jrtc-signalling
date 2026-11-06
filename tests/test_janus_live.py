@@ -127,7 +127,7 @@ async def live_runtime(tmp_path, bus_case, auth_config, authority):
     # cross-repository tests. This isolates the real Janus/SDK/ASGI lifecycle.
     runtime.authority.request = AsyncMock(side_effect=lease)
     app = create_app(
-        Settings(shutdown_timeout=30, media_rehearsal=True),
+        Settings(shutdown_timeout=30, media_rehearsal=True, lifecycle_events=True),
         runtime_factory=lambda: runtime,
         auth_config=auth_config,
         authority_factory=lambda config: authority,
@@ -206,6 +206,39 @@ async def test_real_janus_loss_recovery_uses_fresh_session_and_handle(live_runti
     await runtime.management(meeting, 1, "list_rooms")
     assert any(service is not old_service for service in runtime.services.values())
     assert runtime.manager.metrics["recoveries_completed"] >= 1
+
+
+async def test_real_janus_loss_records_terminal_recovery_snapshot(live_runtime, claims, sign):
+    runtime, server, meeting, app = live_runtime
+    browser = Browser(
+        app,
+        {
+            **claims,
+            "meeting_id": meeting,
+            "participant_id": str(uuid4()),
+            "participant_session_id": str(uuid4()),
+        },
+        sign,
+    )
+    try:
+        assert (await browser.open())["ok"]
+        observation = next(iter(runtime.lifecycle.connections.values()))
+        await server.stop()
+        await asyncio.wait_for(browser.task, 8)
+        assert observation.closed
+        assert observation.body["type"] == "gateway.recovery_failed"
+        assert observation.body["snapshot"]["connection"] == "OFFLINE"
+        assert observation.body["generation"] == claims["generation"]
+        assert observation.body["gateway_generation"] == 1
+    finally:
+        if server.process is None:
+            await server.start()
+        await browser.close()
+        # SDK replacement is asynchronous; finish this external-process
+        # recovery before asking the lifespan to destroy its new session.
+        async with asyncio.timeout(15):
+            while not runtime.manager.ready:  # noqa: ASYNC110 - SDK readiness has no awaitable
+                await asyncio.sleep(0.02)
 
 
 @pytest.mark.parametrize("path", ["embedded", "trickle", "relay"])

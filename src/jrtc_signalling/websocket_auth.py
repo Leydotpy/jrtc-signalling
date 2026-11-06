@@ -42,10 +42,13 @@ class AuthenticatedEndpoint:
         settings: Settings,
         authority: Authority,
         media: "MediaHub | None" = None,
+        *,
+        event_runtime: Any = None,
     ) -> None:
         self.config, self.settings, self.authority = config, settings, authority
         self.verifier = TicketVerifier(config)
         self.media = media
+        self.event_runtime = event_runtime
         self.metrics = DispatchMetrics()
         self.operations = asyncio.Semaphore(16)
         self.handlers: set[asyncio.Task[Any]] = set()

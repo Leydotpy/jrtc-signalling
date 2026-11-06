@@ -20,6 +20,7 @@ SCHEMA_NAMES = frozenset(
         "notification",
         "command",
         "event",
+        "lifecycle-event",
         "command-outcome",
         "ticket-header",
         "ticket-claims",
@@ -85,6 +86,12 @@ def _validator(name: str) -> Draft202012Validator:
 
 
 def _semantics(name: str, message: dict[str, Any]) -> None:
+    if (
+        name == "lifecycle-event"
+        and message["type"] == "participant.media_publishing_changed"
+        and message["data"] != {k: message["snapshot"][k] for k in ("audio", "video", "screen")}
+    ):
+        raise ContractError("Inconsistent lifecycle snapshot.")
     if name == "ticket-claims":
         if (
             not message["iat"]

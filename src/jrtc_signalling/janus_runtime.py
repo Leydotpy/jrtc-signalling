@@ -257,6 +257,10 @@ class HandleRegistry:
 
 class JanusRuntime:
     def __init__(self, bus: BusConfig, config: JanusConfig) -> None:
+        from .lifecycle_events import LifecyclePublisher
+
+        self.bus = bus
+        self.lifecycle: LifecyclePublisher | None = None
         self.config, self.owner_id = config, bus.signer.producer
         self.incarnation = str(uuid4())
         self.authority = OwnershipClient(bus, config.ownership_url, self.incarnation)
@@ -306,6 +310,8 @@ class JanusRuntime:
             self.leases[meeting] = await self.authority.request(meeting, "claim")
         await self.publisher.start()
         await self.manager.start()
+        if self.lifecycle is not None:
+            await self.lifecycle.start()
         self.active = True
         await self.control.start()
         self.task = asyncio.create_task(self._maintain(), name="gateway-janus-ownership")
@@ -319,6 +325,13 @@ class JanusRuntime:
             or asyncio.get_running_loop() is not self.loop
             or lease is None
             or not self.manager.ready
+            or (
+                self.lifecycle is not None
+                and (
+                    self.lifecycle.failed
+                    or (self.lifecycle.task is not None and self.lifecycle.task.done())
+                )
+            )
         ):
             raise OwnershipError("Runtime ownership is unavailable.")
         lease.require(self.owner_id, generation, now=now)
@@ -368,6 +381,10 @@ class JanusRuntime:
         renew_at = asyncio.get_running_loop().time() + 5
         try:
             while not self.stopping.is_set():
+                if self.loss.is_set():
+                    self.loss.clear()
+                    if self.lifecycle is not None:
+                        await self.lifecycle.lost()
                 await self.registry.prune()
                 for key, service in tuple(self.services.items()):
                     if not service.session.ready or key != (
@@ -389,7 +406,6 @@ class JanusRuntime:
                             meeting, "renew", lease.generation
                         )
                     renew_at = asyncio.get_running_loop().time() + 5
-                self.loss.clear()
                 with suppress(TimeoutError):
                     await asyncio.wait_for(self.loss.wait(), 0.5)
         except asyncio.CancelledError:
@@ -445,6 +461,8 @@ class JanusRuntime:
         await attempt(self.manager.stop())
         self.registry.bindings.clear()
         await attempt(self.publisher.stop(drain=True, timeout=2))
+        if self.lifecycle is not None:
+            await attempt(self.lifecycle.aclose())
         if clean and not self.registry.cleanup_failed:
             await asyncio.gather(
                 *(
@@ -467,7 +485,14 @@ class JanusRuntime:
         )
         return DependencyHealth(
             janus=ComponentStatus.READY if self.manager.ready else ComponentStatus.UNAVAILABLE,
-            broka=self.control.status,
+            broka=ComponentStatus.DEGRADED
+            if self.lifecycle is not None
+            and (
+                not self.lifecycle.available
+                or self.lifecycle.failed
+                or (self.lifecycle.task is not None and self.lifecycle.task.done())
+            )
+            else self.control.status,
             authority=ComponentStatus.READY if current else ComponentStatus.UNAVAILABLE,
             ownership=ComponentStatus.READY if current else ComponentStatus.UNAVAILABLE,
         )

@@ -907,5 +907,255 @@
       "occurred_at": "2026-10-28T12:00:00Z",
       "context": "live"
     }
+  },
+  {
+    "name": "lifecycle-lobby_connected",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.lobby_connected",
+      "data": {},
+      "generation": 2,
+      "snapshot": {
+        "connection": "LOBBY_CONNECTED",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-signaling_connected",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.signaling_connected",
+      "data": {},
+      "generation": 2,
+      "snapshot": {
+        "connection": "SIGNALING_CONNECTED",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-media_connecting",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_connecting",
+      "data": {
+        "handle_type": "publisher"
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "MEDIA_CONNECTING",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-media_connected",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_connected",
+      "data": {
+        "media_kind": "audio"
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "MEDIA_CONNECTED",
+        "audio": true,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-media_publishing_changed",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_publishing_changed",
+      "data": {
+        "audio": true,
+        "video": false,
+        "screen": false
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "MEDIA_CONNECTED",
+        "audio": true,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-media_disconnected",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.media_disconnected",
+      "data": {
+        "reason_code": "requested"
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "SIGNALING_CONNECTED",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-signaling_disconnected",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "participant.signaling_disconnected",
+      "data": {
+        "reason_code": "normal"
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "OFFLINE",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-session_lost",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "gateway.session_lost",
+      "data": {
+        "reason_code": "transport_lost"
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "RECOVERING",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
+  },
+  {
+    "name": "lifecycle-recovery_failed",
+    "schema": "lifecycle-event",
+    "message": {
+      "schema_version": 1,
+      "event_id": "event-1",
+      "meeting_id": "meeting-session-1",
+      "participant_id": "participant-1",
+      "participant_session_id": "connection-1",
+      "gateway_owner_id": "worker-1",
+      "gateway_generation": 4,
+      "authorization_epoch": 7,
+      "sequence": 15,
+      "occurred_at": "2026-10-28T12:00:00Z",
+      "trace_id": "trace-1",
+      "type": "gateway.recovery_failed",
+      "data": {
+        "reason_code": "owner_lost"
+      },
+      "generation": 2,
+      "snapshot": {
+        "connection": "OFFLINE",
+        "audio": false,
+        "video": false,
+        "screen": false
+      }
+    }
   }
 ]

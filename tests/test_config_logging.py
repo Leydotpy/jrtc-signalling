@@ -64,6 +64,7 @@ def test_invalid_config_fails_without_echoing_input(name, value):
         {"host": None},
         {"websocket_path": None},
         {"media_rehearsal": 1},
+        {"lifecycle_events": 1},
     ],
 )
 def test_programmatic_config_has_same_validation(kwargs):
@@ -88,6 +89,19 @@ async def test_media_rehearsal_requires_owned_runtime(auth_config):
     with pytest.raises(ConfigurationError):
         async with app.router.lifespan_context(app):
             pytest.fail("Scaffold cannot enable media")
+
+
+async def test_lifecycle_events_require_opt_in_auth_and_fenced_runtime(auth_config):
+    from jrtc_signalling.app import create_app
+
+    assert not Settings.from_env({}).lifecycle_events
+    enabled = Settings.from_env({"JRTC_SIGNALLING_LIFECYCLE_EVENTS": "true"})
+    with pytest.raises(ConfigurationError):
+        create_app(enabled)
+    app = create_app(enabled, auth_config=auth_config)
+    with pytest.raises(ConfigurationError):
+        async with app.router.lifespan_context(app):
+            pytest.fail("Scaffold cannot publish lifecycle events")
 
 
 def test_server_logs_cannot_leak_url_arguments_or_exception_input():

@@ -18,6 +18,7 @@ See [progress and blockers](docs/implementation/PROGRESS.md),
 [ticket security contract](docs/SECURITY.md),
 [authentication setup](docs/AUTHENTICATION.md),
 [command delivery setup](docs/COMMAND_PLANE.md),
+[lifecycle observation delivery](docs/LIFECYCLE_EVENTS.md),
 [runtime ownership rehearsal](docs/RUNTIME_OWNERSHIP.md),
 [media signalling rehearsal](docs/MEDIA_SIGNALLING.md) and the
 [instruction pack](docs/implementation/README.md).
