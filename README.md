@@ -11,7 +11,9 @@ optional exclusive JRTC runtime ownership and bounded browser media dispatch.
 **Media signalling is disabled by default.** Isolated media rehearsal requires
 explicit TLS/auth/runtime configuration and its own opt-in flag; readiness
 remains 503 until the later acceptance gates are complete.
-Existing Django/browser signalling remains unchanged.
+Existing Django/browser signalling remains unchanged. SG-09 adds ordered ICE and
+fenced restart handling. SG-10 adds optional durable lifecycle observations and
+an authenticated Django consumer, keeping permission decisions in Django.
 
 See [progress and blockers](docs/implementation/PROGRESS.md),
 [v1 protocol and compatibility map](docs/PROTOCOL.md),

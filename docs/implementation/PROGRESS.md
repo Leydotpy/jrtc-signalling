@@ -17,59 +17,42 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-07 Runtime ownership | DONE | [Report](tracking/reports/SG-07.md), gateway `162d78778a8fc23457e34a0792417d9e69b323ed` / integration fix `76109404888f5846be4dac24d608dbf49aba55f5`; Synq `ea002b1bc29b69681cdea1cd7364d7fa1c9613bf` |
 | SG-08 Media signalling | DONE | [Report](tracking/reports/SG-08.md), implementation `fb0d048932be369fb50c7305b0f35ad6df409f9d`, fixes through `f24631887cf06b73a219e17119f793be37d68dc5` |
 | SG-09 Ordered ICE/restart | DONE | [Report](tracking/reports/SG-09.md), implementation `ee8999b0f987f9cdfe4513adb419291970a246bd`, CI portability fix `1baf2fc221e7b84e50c7b861738964d08de74e91` |
-| SG-10–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-10 Lifecycle events | DONE | [Report](tracking/reports/SG-10.md), gateway `16a3272ca4625b133f24dbbf0e8fdd1e036c8694`; Synq `a4ea69571bd9f21e8301f1b656ebce626b9c392f` |
+| SG-11–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
 
-The SG-09 local gateway run passed all **466 tests with zero skips** on Python
-3.12.14 using real isolated Janus 1.1.2, Redis 7.0.15 and coturn 4.6.1. This includes
-direct trickle, relay-only media, authenticated publisher/subscriber ICE restarts
-and continued audio reception. All **16 upstream client batcher tests**, **six
-Django compatibility tests** and **18 timeout/overload repetitions** also passed.
-Lint, formatting, 20-file typecheck, package build and all nine schema exports passed.
-The report records initial failures and the hosted portability fixes. The final
-[SG-09 run](https://github.com/Leydotpy/jrtc-signalling/actions/runs/42213006328)
-passed all six jobs: **461 passed / five live-service skips** on each supported
-Python version, **five passed** in the dedicated Janus/TURN job, six Django
-compatibility checks and container/package checks. No required test is skipped overall.
+SG-10 passed **486 gateway tests** locally with real Janus 1.1.2, Redis 7.0.15
+and coturn 4.6.1, with zero skips. **198 Synq tests** passed against PostgreSQL
+16.2/Redis, also with zero skips, using the installed immutable gateway artifact.
+A separate live Janus -> Broka -> Django/PostgreSQL check passed signed ticket and
+owner HTTP, lobby isolation, publishing observations and broker-stalled disconnect
+replay. Lint, formatting, 21-file typecheck, ten schema exports, migration drift
+and package builds passed. [The report](tracking/reports/SG-10.md) records commands,
+initial failures, scope limits and rollback.
 
-[Gateway CI 41191969654](https://github.com/Leydotpy/jrtc-signalling/actions/runs/41191969654)
-passed all six jobs: 341 tests on each supported Python version, two additional
-live Janus tests, existing Django compatibility checks and container/package
-checks. After the signed ownership HTTP check was added, all five cross-repository
-checks passed locally against the pinned SG-07 Synq implementation.
+[Gateway CI 42263270744](https://github.com/Leydotpy/jrtc-signalling/actions/runs/42263270744)
+passed all six jobs: 480 tests plus six dedicated-live-test skips on each supported
+Python version, six actual Janus/TURN tests, six authority compatibility checks,
+container and packaging checks.
+[Synq CI 42263492020](https://github.com/Leydotpy/synq/actions/runs/42263492020)
+passed all 198 PostgreSQL 16/Redis 7.4 tests and the live lifecycle integration.
+No required test is skipped overall. Earlier task evidence remains in its reports.
 
-[Synq CI 41876688346](https://github.com/Leydotpy/synq/actions/runs/41876688346)
-passed all **182 tests on PostgreSQL 16 and Redis 7.4**, with zero skips, and the
-migration drift check. This includes competing-owner claims, signed ownership
-HTTP round trips, legacy cohort exclusion, outbox races and broker retry.
-The final SG-07 gateway rerun
-[41878892040](https://github.com/Leydotpy/jrtc-signalling/actions/runs/41878892040)
-also passed all six jobs. SG-08's final hosted run
-[42072756717](https://github.com/Leydotpy/jrtc-signalling/actions/runs/42072756717)
-passed all six jobs: 399 tests on each supported Python version, three additional
-live Janus tests, five Django compatibility checks and container/package checks.
-Its report records the earlier live-test portability and cancellation failures
-and their verified fixes.
+## Current implementation boundary
 
-## What works and what remains
+The standalone gateway authenticates sessions, exchanges signed owner-targeted
+commands/outcomes, owns Janus resources under Django-issued leases, and supports
+bounded media/ordered ICE rehearsal. Optional lifecycle publication now persists
+complete observations, retries/reconciles broker failures and records authenticated
+snapshots in Django. SDP/ICE never enters Broka or Django; observation events never
+change admission, roles, permissions or joined_at.
 
-The standalone gateway authenticates control sessions, validates wire contracts,
-and exchanges durable signed owner-targeted commands/outcomes with Django.
-An optional ASGI-owned JRTC runtime now creates real Janus sessions and opaque
-handles under Django-issued exclusive leases and generation checks. Persisted
-meeting cohorts prevent legacy Django/Celery Janus work on gateway sessions.
-Loss recovery invalidates old handles, and clean disposal precedes lease release.
+Both lifecycle flags remain off by default and readiness stays 503. Public presence
+projection/SSE, frontend transport integration, physical moderation, resumed
+sessions and reconciled failover remain later tasks. Uncertain media cleanup keeps
+its existing conservative lease fence; SG-10 does not authorize takeover.
 
-Admission, accepted commands and applied enforcement remain distinct from media
-presence. A correctly routed command reports failed/unavailable until SG-13 adds
-physical enforcement; an absent/stale owner reports failed/owner_lost. Browser
-media dispatch is now available only with the explicit rehearsal flag and current
-owner/auth configuration. Overall readiness stays 503. Reconciled crash takeover
-and multiworker routing remain SG-15. Sensitive media transitions retain the
-SG-04 authority preflight; SDP is never relayed through Django or Broka.
-
-SG-00–SG-09 are complete for their stated scopes and committed on feature branches.
-Next: SG-10 gateway lifecycle events and the Django Broka consumer.
-Nine tasks remain, SG-10–SG-18.
-No production routing or deployment has changed.
+SG-00–SG-10 are complete for their stated scopes and committed on feature branches.
+Next: **SG-11 — Django presence projection and SSE**. Eight tasks remain,
+SG-11–SG-18. No production routing, merge or deployment has changed.

@@ -152,15 +152,18 @@
     {
       "id": "SG-10",
       "title": "Gateway lifecycle events and Django Broka consumer",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "dependencies": [
         "SG-06",
         "SG-07"
       ],
       "repos": "gateway + synq",
-      "report": null,
-      "commits": {},
-      "last_updated": null
+      "report": "tracking/reports/SG-10.md",
+      "commits": {
+        "gateway": "16a3272ca4625b133f24dbbf0e8fdd1e036c8694",
+        "synq": "a4ea69571bd9f21e8301f1b656ebce626b9c392f"
+      },
+      "last_updated": "2026-11-06T17:41:23.644433+00:00"
     },
     {
       "id": "SG-11",
