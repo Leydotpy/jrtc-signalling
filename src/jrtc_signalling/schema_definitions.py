@@ -168,7 +168,7 @@ STREAM = obj(
         "media_kind": {"enum": ["audio", "video", "screen", "data"]},
         "janus_mid": text(128),
         "janus_feed_id": nullable(JANUS_ID),
-        "janus_feed_mid": text(128),
+        "janus_feed_mid": nullable(text(128)),
         "codec": text(128),
         "is_active": BOOL,
         "is_ready": BOOL,

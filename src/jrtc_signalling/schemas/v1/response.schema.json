@@ -142,9 +142,16 @@
                     ]
                   },
                   "janus_feed_mid": {
-                    "type": "string",
-                    "minLength": 0,
-                    "maxLength": 128
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 128
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "codec": {
                     "type": "string",

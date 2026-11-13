@@ -64,6 +64,11 @@ selected feeds. Answers cannot add/reorder media or publish on the subscriber
 handle. Janus IDs remain Python integers internally and canonical decimal strings
 on the wire, including values above JavaScript's safe integer range. Unspecified
 selected-stream cross-reference/subscriber MID fields retain null values.
+Inactive subscriber slots also retain null `janus_feed_id`, `janus_feed_mid`
+and source identity when Janus no longer has a publisher for that m-line. They
+remain valid response layouts; active audio/video slots must still reference a
+currently selected feed and MID. A publisher departure must not terminate another
+participant's signalling or publisher transport.
 
 Each publisher negotiation uses a new ID, bounded to 64 per connection; reconnect
 when that history is exhausted. Subscriber IDs are allocated by the gateway.

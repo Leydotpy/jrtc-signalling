@@ -241,6 +241,99 @@ async def test_real_janus_loss_records_terminal_recovery_snapshot(live_runtime, 
                 await asyncio.sleep(0.02)
 
 
+async def test_real_janus_publisher_departure_preserves_other_participant(
+    live_runtime, claims, sign, monkeypatch
+):
+    from aioice.ice import get_host_addresses
+    from aiortc import AudioStreamTrack, RTCConfiguration, RTCPeerConnection, RTCSessionDescription
+
+    def local_addresses(**kwargs):
+        try:
+            return get_host_addresses(**kwargs) or ["127.0.0.1"]
+        except PermissionError:
+            return ["127.0.0.1"]
+
+    monkeypatch.setattr("aioice.ice.get_host_addresses", local_addresses)
+    runtime, _server, meeting, app = live_runtime
+    browsers = [
+        Browser(
+            app,
+            {
+                **claims,
+                "meeting_id": meeting,
+                "participant_id": str(uuid4()),
+                "participant_session_id": str(uuid4()),
+                "jti": str(uuid4()),
+            },
+            sign,
+        )
+        for _ in range(2)
+    ]
+    pcs = [RTCPeerConnection(RTCConfiguration(iceServers=[])) for _ in range(4)]
+    try:
+        for browser, pc in zip(browsers, pcs[:2], strict=True):
+            assert (await browser.open())["ok"]
+            pc.addTransceiver(AudioStreamTrack(), direction="sendonly")
+            await pc.setLocalDescription(await pc.createOffer())
+            payload = publish_payload()
+            payload["offer"]["sdp"] = pc.localDescription.sdp
+            response = await browser.request("media.publisher.publish", payload)
+            assert response["ok"], response.get("error")
+            await pc.setRemoteDescription(RTCSessionDescription(**response["result"]["jsep"]))
+            async with asyncio.timeout(10):
+                while (await browser.receive()).get("payload", {}).get("kind") != "webrtcup":
+                    pass
+        for browser, pc in zip(browsers, pcs[2:], strict=True):
+            response = await browser.request("media.subscriber.join")
+            assert response["ok"], response.get("error")
+            joined = response["result"]
+            await pc.setRemoteDescription(RTCSessionDescription(**joined["jsep"]))
+            await pc.setLocalDescription(await pc.createAnswer())
+            started = await browser.request(
+                "media.subscriber.start",
+                {
+                    "answer": {"type": "answer", "sdp": pc.localDescription.sdp},
+                    "negotiation_id": joined["negotiation_id"],
+                },
+            )
+            assert started["ok"], started.get("error")
+            assert (await asyncio.wait_for(pc.getReceivers()[0].track.recv(), 10)).samples > 0
+        host, guest = browsers
+        await guest.close()
+        await asyncio.gather(pcs[1].close(), pcs[3].close())
+        response = await host.request("media.subscriber.sync")
+        assert response["ok"], response.get("error")
+        result = response["result"]
+        assert result["selected_streams"] == []
+        assert all(
+            not stream["is_active"]
+            and stream["janus_feed_id"] is None
+            and stream["janus_feed_mid"] is None
+            for stream in result["streams"]
+        )
+        if result.get("jsep"):
+            await pcs[2].setRemoteDescription(RTCSessionDescription(**result["jsep"]))
+            await pcs[2].setLocalDescription(await pcs[2].createAnswer())
+            started = await host.request(
+                "media.subscriber.start",
+                {
+                    "answer": {"type": "answer", "sdp": pcs[2].localDescription.sdp},
+                    "negotiation_id": result["negotiation_id"],
+                },
+            )
+            assert started["ok"], started.get("error")
+        assert (await host.request("session.ping"))["ok"]
+        assert pcs[0].connectionState == "connected"
+        assert any(
+            binding.ref.participant_id == host.claims["participant_id"]
+            for binding in runtime.registry.bindings.values()
+        )
+    finally:
+        for browser in browsers:
+            await browser.close()
+        await asyncio.gather(*(pc.close() for pc in pcs))
+
+
 @pytest.mark.parametrize("path", ["embedded", "trickle", "relay"])
 async def test_real_janus_publisher_subscriber_offer_answer_and_cleanup(
     live_runtime, claims, sign, monkeypatch, tmp_path, path
