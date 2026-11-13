@@ -11,6 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from websockets.asyncio.server import serve
 
 from jrtc_signalling.app import create_app
+from jrtc_signalling.auth import AuthError
 from jrtc_signalling.config import Settings
 from jrtc_signalling.contracts import validate_message
 from jrtc_signalling.janus_runtime import JanusConfig, JanusRuntime
@@ -402,6 +403,66 @@ async def test_slow_authority_check_does_not_misclassify_inflight_grant_as_revoc
 
     r.authority.check = slow
     assert (await browser.request("media.publisher.configure", publish_payload()))["ok"]
+
+
+@pytest.mark.parametrize("denied", [False, True])
+async def test_subscription_diff_waits_for_other_publishers_authority_check(rehearsal, denied):
+    r = rehearsal
+    publisher, subscriber = await r.browser(), await r.browser()
+    published = (await publisher.request("media.publisher.publish", publish_payload()))["result"]
+    source = r.hub.peers[publisher.claims["meeting_id"], publisher.claims["participant_id"]]
+    recipient = r.hub.peers[subscriber.claims["meeting_id"], subscriber.claims["participant_id"]]
+    entered, release = asyncio.Event(), asyncio.Event()
+    original = r.authority.check
+
+    async def blocked(claims, **kwargs):
+        if claims["participant_session_id"] == publisher.claims["participant_session_id"]:
+            entered.set()
+            await release.wait()
+            if denied:
+                raise AuthError("FORBIDDEN")
+        return await original(claims, **kwargs)
+
+    r.authority.check = blocked
+    checking = asyncio.create_task(source.authorize("media.publisher.configure", publish_payload()))
+    await entered.wait()
+    assert source.authorization.grant is None
+    diff = asyncio.create_task(r.hub.targets(recipient))
+    await asyncio.sleep(0)  # Let the task reach the explicit authority barrier.
+    assert not diff.done()
+    release.set()
+    outcome, targets = await asyncio.gather(checking, diff, return_exceptions=True)
+    assert source.authorization.checks_settled.is_set()
+    if denied:
+        assert isinstance(outcome, AuthError)
+        assert targets == {}
+    else:
+        assert outcome is None
+        assert targets == {(int(published["streams"][0]["janus_feed_id"]), "0"): source.participant}
+    assert not any(row.get("body", {}).get("request") == "update" for row in r.fake.requests)
+
+
+async def test_inactive_subscriber_slot_does_not_invent_a_feed_identity(rehearsal):
+    from jrtc_video import parse_videoroom_response
+
+    r = rehearsal
+    publisher, subscriber = await r.browser(), await r.browser()
+    await publisher.request("media.publisher.publish", publish_payload())
+    await subscriber.request("media.subscriber.join")
+    peer = r.hub.peers[subscriber.claims["meeting_id"], subscriber.claims["participant_id"]]
+    handle = peer.handles["subscriber"]
+    reply = parse_videoroom_response(
+        {
+            "videoroom": "updated",
+            "room": 1,
+            "streams": [{"mid": "0", "type": "audio", "active": False, "ready": False}],
+        }
+    )
+    peer._subscriber_layout(handle, reply)
+    assert len(handle.streams) == 1
+    assert handle.streams[0]["janus_feed_id"] is None
+    assert handle.streams[0]["source_participant_id"] is None
+    assert handle.streams[0]["is_active"] is False
 
 
 async def test_sdk_timeout_is_never_retried_and_returns_uncertain_outcome(rehearsal):

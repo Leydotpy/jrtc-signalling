@@ -145,7 +145,23 @@ class MediaHub:
             room.ready = True
             return room
 
-    def targets(self, peer: MediaPeer) -> dict[tuple[int, str], str]:
+    async def targets(self, peer: MediaPeer) -> dict[tuple[int, str], str]:
+        # An RPC intentionally clears its cached grant. Wait for that check,
+        # without taking another peer's media lock, before diffing topology.
+        # Treating the temporary gap as removal causes destructive unsubscribe.
+        try:
+            async with asyncio.timeout(3):
+                while pending := [
+                    other.authorization.checks_settled.wait()
+                    for other in self.peers.values()
+                    if other is not peer
+                    and other.meeting == peer.meeting
+                    and not other.closed
+                    and other.authorization.pending_checks
+                ]:
+                    await asyncio.gather(*pending)
+        except TimeoutError:
+            raise AuthError("UNAVAILABLE") from None
         targets: dict[tuple[int, str], str] = {}
         for other in self.peers.values():
             if other is peer or other.meeting != peer.meeting or other.closed:
@@ -346,7 +362,7 @@ class MediaPeer:
         handle: MediaHandle,
         mid: str,
         kind: str,
-        feed: int,
+        feed: int | None,
         feed_mid: str | None,
         source: str | None,
         *,
@@ -357,7 +373,7 @@ class MediaPeer:
             "direction": "outbound" if handle.ref.role == "publisher" else "inbound",
             "media_kind": kind,
             "janus_mid": mid,
-            "janus_feed_id": str(feed),
+            "janus_feed_id": str(feed) if feed is not None else None,
             "janus_feed_mid": feed_mid,
             "is_active": active,
             "is_ready": active and handle.webrtc_ready,
@@ -589,7 +605,7 @@ class MediaPeer:
         return self._ack(handle, action, reply)
 
     async def _subscribe(self) -> dict[str, Any]:
-        targets = self.hub.targets(self)
+        targets = await self.hub.targets(self)
         handle = self.handles.get("subscriber")
         if handle is not None and handle.pending_offer is not None:
             raise OperationError("STALE_NEGOTIATION")
@@ -657,7 +673,8 @@ class MediaPeer:
             # and update replies already carry typed SubscriberStreamInfo rows.
             if isinstance(row, dict):
                 row = SubscriberStreamInfo.model_validate(row)
-            feed, mid, feed_mid = janus_id(row.feed_id), row.mid, row.feed_mid
+            feed = janus_id(row.feed_id) if row.feed_id is not None else None
+            mid, feed_mid = row.mid, row.feed_mid
             if (
                 not isinstance(mid, str)
                 or not 1 <= len(mid) <= 128
@@ -668,7 +685,9 @@ class MediaPeer:
                 raise OperationError("OUTCOME_UNKNOWN")
             mids.add(mid)
             active = getattr(row, "active", False) is True
-            if active and (feed_mid is None or (feed, feed_mid) not in handle.selected):
+            if active and (
+                feed is None or feed_mid is None or (feed, feed_mid) not in handle.selected
+            ):
                 raise OperationError("OUTCOME_UNKNOWN")
             streams.append(
                 self._stream(
@@ -677,7 +696,9 @@ class MediaPeer:
                     row.type,
                     feed,
                     feed_mid,
-                    handle.selected.get((feed, feed_mid)) if feed_mid is not None else None,
+                    handle.selected.get((feed, feed_mid))
+                    if feed is not None and feed_mid is not None
+                    else None,
                     active=active,
                 )
             )

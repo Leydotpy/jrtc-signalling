@@ -270,6 +270,9 @@ class AuthorizationSession:
         self.revision = 0
         self.minimum_epoch = claims["authorization_epoch"]
         self.revoked = False
+        self.pending_checks = 0
+        self.checks_settled = asyncio.Event()
+        self.checks_settled.set()
 
     def invalidate(self, epoch: int) -> None:
         if epoch >= self.minimum_epoch:
@@ -290,16 +293,23 @@ class AuthorizationSession:
         # The cache age includes RPC time, so slow checks cannot extend stale state.
         started = self.clock()
         self.grant = None
+        self.pending_checks += 1
+        self.checks_settled.clear()
         try:
             result = await self.authority.check(self.claims, operation=operation, consume=consume)
         except AuthError:
             raise
         except Exception:
             raise AuthError("UNAVAILABLE") from None
-        if self.revision != revision or self.wall_clock() >= result.valid_until:
-            raise AuthError("STALE_AUTHORIZATION")
-        self.grant, self.deadline = result, started + self.cache_seconds
-        return result
+        else:
+            if self.revision != revision or self.wall_clock() >= result.valid_until:
+                raise AuthError("STALE_AUTHORIZATION")
+            self.grant, self.deadline = result, started + self.cache_seconds
+            return result
+        finally:
+            self.pending_checks -= 1
+            if not self.pending_checks:
+                self.checks_settled.set()
 
     async def authorize(self, operation: str, payload: dict[str, Any]) -> None:
         if operation.startswith("media."):
