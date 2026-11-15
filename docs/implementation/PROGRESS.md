@@ -20,7 +20,7 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-10 Lifecycle events | DONE | [Report](tracking/reports/SG-10.md), gateway `16a3272ca4625b133f24dbbf0e8fdd1e036c8694`; Synq `a4ea69571bd9f21e8301f1b656ebce626b9c392f` |
 | SG-11 State projection/SSE | DONE | [Report](tracking/reports/SG-11.md), Synq `2cd29394081243cc0be9feb62d7359f5a3dcf041` |
 | SG-12 Client transport/SSE | DONE | [Report](tracking/reports/SG-12.md); browser CI 43563938796, runtime `a623d2f`, client `f2c080d`, Synq `d8f47f3`, plugin `eed4309` |
-| SG-13 Moderation | READY_FOR_REVIEW | [Report](tracking/reports/SG-13.md); local `ffd4b14`, implementation/verification complete; push blocked by automatic approval review |
+| SG-13 Moderation | DONE | [Report](tracking/reports/SG-13.md); implementation `e05d0bd`, acceptance runner `82f34a0`; all seven jobs passed in [CI 43715489748](https://github.com/Leydotpy/jrtc-signalling/actions/runs/43715489748) |
 | SG-14–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
@@ -31,9 +31,12 @@ gateway tests** passed with real Janus/Redis/TURN and zero skips, plus **242 Syn
 tests**, three new actual Django/Broka/Janus moderation tests, both existing live
 integrations and six authority compatibility tests. Lint, format, types, schema
 and package builds passed. [The report](tracking/reports/SG-13.md) records exact
-commands and limits. Implementation is committed locally as `ffd4b14`; automatic
-approval review blocked its upload to the public GitHub repository. Remote
-publication/hosted CI remain pending explicit authorization, and SG-14 is not started.
+commands and limits. Implementation is published as `e05d0bd`; the acceptance
+runner correction is `82f34a0`. [Hosted CI 43715489748](https://github.com/Leydotpy/jrtc-signalling/actions/runs/43715489748)
+passed all seven jobs: Python 3.12/3.13/3.14 verification, seven live Janus/TURN
+tests, three live moderation scenarios, six Django compatibility checks and the
+container job. SG-00–SG-13 are complete for their stated scope. SG-14 is next and
+has not started.
 
 SG-12 passed the complete Chromium/React integration in
 [browser CI 43563938796](https://github.com/Leydotpy/synq.js/actions/runs/43563938796):
@@ -44,9 +47,8 @@ locally with real Janus/Redis/TURN and zero skips; final gateway CI passed all s
 jobs. **242 Synq tests**, both live integrations, **49 client tests**, five
 publishing checks, 18 app tests, builds/types/lint/schema/migration checks passed.
 The [report](tracking/reports/SG-12.md) records exact pins, fixes and scope limits.
-At SG-12 completion, SG-13 through SG-18 remained: six tasks. The current SG-13
-implementation and publication status are recorded above. No merge, cutover or
-deployment occurred.
+The current SG-13 implementation and publication status are recorded above.
+No merge, cutover or deployment occurred.
 
 SG-11 passed **228 Synq tests** locally against PostgreSQL 16.2/Redis, zero skips,
 and both actual Janus integrations: the existing lifecycle path and the new
@@ -87,12 +89,20 @@ change admission, roles, permissions or joined_at.
 Optional Django projection and authenticated SSE/snapshots now provide monotonic,
 permission-filtered state, replay/snapshot repair and disposable Redis presence.
 Admission remains independent of observed connection. Lifecycle and state flags
-remain off by default and gateway readiness stays 503. Frontend integration is implemented behind an explicit cohort and under SG-12
-browser verification. Physical moderation, automatic resumed sessions and
-reconciled failover remain later tasks.
-Uncertain media cleanup retains its conservative lease fence; SG-11 does not
-authorize takeover or change media transport.
+remain off by default and gateway readiness stays 503. Frontend integration is
+implemented behind an explicit cohort and passed SG-12 browser verification.
+SG-13 adds physical moderation, current-grant reconciliation during broker outages,
+and confirmed handle/room cleanup. Uncertain media cleanup retains its conservative
+lease fence. Automatic resumed sessions and reconciled failover remain SG-14/15.
 
-SG-00–SG-11 are complete for their stated scopes and committed on feature branches.
-Current: **SG-12 — Client transport adapter and Django SSE integration**. Seven
-tasks remain until its real browser acceptance passes, SG-12–SG-18. No production routing, merge or deployment has changed.
+After SG-13, the remaining dependency order is:
+
+| Task | Remaining work |
+| --- | --- |
+| SG-14 Reconnect and resume | Refresh tickets, fence old sockets, safely recover media, and reconcile frontend state without repeating valid admission |
+| SG-15 Multiworker ownership | Route to the current worker, reconcile lease loss, prevent duplicate owners, and drain safely during restart |
+| SG-16 Performance and observability | Measure latency/load, exercise outages, and add bounded metrics, logging and alert guidance |
+| SG-17 Staged cutover and rollback | Enable selected local/staging cohorts, prove no dual ownership, and rehearse safe rollback |
+| SG-18 Final acceptance | Verify the complete cross-repository flow, failure matrix, reproducible setup and readiness evidence |
+
+These five tasks have not started. Production rollout remains a separate decision.
