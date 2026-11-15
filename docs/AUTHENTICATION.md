@@ -52,10 +52,10 @@ Each connection has one cached grant, expiring after 0.5 seconds measured from
 the start of the RPC and never beyond ticket expiry. Ping/ICE may reuse it;
 privileged media transitions always recheck Django. Invalidation racing an RPC
 cannot repopulate the cache. Unavailable/expired/mismatched authority denies;
-there is no stale fallback. The invalidation entry point is implemented/tested,
-but physical enforcement of durable commands remains SG-13 work. The cache window
-is not an atomic remote authorization-to-Janus fence. Production media remains
-disabled pending live revocation and acceptance gates. SG-08 retains the fresh
+there is no stale fallback. [SG-13](MODERATION.md) adds command-side epoch barriers,
+physical removal and periodic checks for idle sessions when the broker is down.
+The cache window is not an atomic remote authorization-to-Janus fence. Production media remains
+disabled pending the remaining acceptance gates. SG-08 retains the fresh
 authority preflight while routing SDP directly to Janus; it does not claim zero
 authority HTTP round trips for sensitive transitions.
 

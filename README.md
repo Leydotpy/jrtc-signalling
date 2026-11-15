@@ -85,7 +85,8 @@ startup/shutdown, including reusable management handles, concurrent attachment,
 disposal and server recovery. SG-08 adds wire-level mock Janus dispatch and a real
 publisher/subscriber offer/answer/start exchange receiving an audio frame through
 Janus. Install `--group media-test` for the opted-in Janus tests; see the media
-rehearsal guide. Browser/TURN/host-removal acceptance remains later work.
+rehearsal guide. SG-12 records browser/TURN acceptance; [SG-13](docs/MODERATION.md)
+adds command-side physical removal and its failure/race verification.
 
 ## Local container
 
@@ -102,8 +103,7 @@ deployment has been created.
 
 ## Next dependency
 
-SG-10 adds gateway lifecycle events and the Django Broka consumer. With the optional runtime
-configured, commands check current ownership but report failed/unavailable until
-physical enforcement is implemented in SG-13. The default enforcer without a
-runtime still reports failed/owner_lost. Follow the
+SG-13 now enforces moderation with the optional runtime and media rehearsal enabled.
+SG-14 adds automatic reconnect/resume and stale-generation recovery. The default
+enforcer without a runtime still reports failed/owner_lost. Follow the
 [task order](docs/implementation/EXECUTION_ORDER.md).

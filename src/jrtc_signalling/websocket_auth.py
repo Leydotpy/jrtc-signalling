@@ -53,6 +53,13 @@ class AuthenticatedEndpoint:
         self.operations = asyncio.Semaphore(16)
         self.handlers: set[asyncio.Task[Any]] = set()
         self.connections: dict[WebSocket, AuthorizationSession | None] = {}
+        self.sessions: set[SocketSession] = set()
+        self.moderation = None
+        if media is not None:
+            from .moderation import ModerationEnforcer
+
+            self.moderation = ModerationEnforcer(self)
+            media.runtime.moderation = self.moderation
         self.handshakes = RateLimit(burst=20, per_second=10)
         self.closing = False
 
@@ -110,6 +117,7 @@ class AuthenticatedEndpoint:
         handler = asyncio.current_task()
         assert handler is not None
         self.handlers.add(handler)
+        socket_session = None
         try:
             async with asyncio.timeout(self.config.auth_timeout):
                 await websocket.accept(subprotocol=PROTOCOL)
@@ -125,7 +133,11 @@ class AuthenticatedEndpoint:
                 )
                 await session.check(request["op"], consume=True)
             self.connections[websocket] = session
-            await SocketSession(self, websocket, session).run(request)
+            if self.moderation is not None:
+                self.moderation.check(session)
+            socket_session = SocketSession(self, websocket, session)
+            self.sessions.add(socket_session)
+            await socket_session.run(request)
         except WebSocketDisconnect:
             pass
         except CloseSession as exc:
@@ -143,6 +155,9 @@ class AuthenticatedEndpoint:
         finally:
             self.connections.pop(websocket, None)
             self.handlers.discard(handler)
+            if socket_session is not None:
+                self.sessions.discard(socket_session)
+                socket_session.finished.set()
 
     async def _close(self, websocket: WebSocket, code: int) -> None:
         try:

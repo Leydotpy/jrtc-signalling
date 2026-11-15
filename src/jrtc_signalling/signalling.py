@@ -93,6 +93,8 @@ class SocketSession:
         self.observation: ObservationConnection | None = None
         self.transport_lost = False
         self.failure = asyncio.Event()
+        self.revocation = asyncio.Event()
+        self.finished = asyncio.Event()
         self.metrics = endpoint.metrics
 
     def _put(self, raw: str) -> None:
@@ -249,8 +251,10 @@ class SocketSession:
             self.endpoint.authority, claims, cache_seconds=self.endpoint.config.cache_seconds
         )
         await fresh.check("session.refresh", consume=True)
-        if old.revision != revision:
+        if old.revision != revision or old.revoked:
             raise AuthError("STALE_AUTHORIZATION")
+        if self.endpoint.moderation is not None:
+            self.endpoint.moderation.check(fresh)
         self.authorization = fresh
         self.endpoint.connections[self.websocket] = fresh
         if self.peer is not None:
@@ -286,7 +290,11 @@ class SocketSession:
                     self.metrics.active += 1
                     self.metrics.peak_active = max(self.metrics.peak_active, self.metrics.active)
                     if op == "session.refresh":
-                        await self._refresh(request)
+                        if self.peer is not None:
+                            async with self.peer.lock:
+                                await self._refresh(request)
+                        else:
+                            await self._refresh(request)
                         result = {}
                     elif op == "session.ping":
                         if self.peer is not None:
@@ -325,6 +333,22 @@ class SocketSession:
                 metric.maximum_seconds = max(metric.maximum_seconds, elapsed)
                 self.requests.task_done()
 
+    async def _authority_guard(self) -> None:
+        # Idle media must also observe revocation when the broker is down.
+        # This bounded RPC is off the Janus reader and serialized with media
+        # checks so temporarily clearing the grant cannot look like a revoke.
+        while True:
+            await asyncio.sleep(1)
+            async with asyncio.timeout(self.REQUEST_SECONDS):
+                if self.peer is not None:
+                    await self.peer.authorize("session.ping", {})
+                else:
+                    await self.authorization.check("session.ping")
+
+    async def _revoked(self) -> None:
+        await self.revocation.wait()
+        raise AuthError("STALE_AUTHORIZATION")
+
     async def run(self, hello: dict[str, Any]) -> None:
         tasks: list[asyncio.Task[Any]] = []
         self.records[hello["id"]] = Record(self._digest(hello))
@@ -355,7 +379,14 @@ class SocketSession:
             self._reply(hello, result)
             tasks = [
                 asyncio.create_task(coro)
-                for coro in (self._reader(), self._worker(), self._writer(), self.failure.wait())
+                for coro in (
+                    self._reader(),
+                    self._worker(),
+                    self._writer(),
+                    self.failure.wait(),
+                    self._revoked(),
+                    self._authority_guard(),
+                )
             ]
             if self.peer is not None:
                 tasks.extend(

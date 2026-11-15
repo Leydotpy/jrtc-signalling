@@ -5,10 +5,10 @@ The optional `runtime` extra pins the same reviewed JRTC 3.2.0 and jrtc-video
 in-memory handle registry. No Django module, persisted plugin object or saved
 Janus ID is used to acquire a live handle. Core JRTC alone replaces lost sessions.
 
-This is an isolated rehearsal component. Browser media operations remain SG-08;
-moderation enforcement remains SG-13. Overall readiness stays 503 even when
-Janus, broker and ownership probes are healthy. A correctly routed command still
-reports failed/unavailable until its physical operation is implemented.
+This is an isolated rehearsal component. Browser media operations are provided
+by SG-08/09 and physical moderation by [SG-13](MODERATION.md). Overall readiness
+stays 503 even when Janus, broker and ownership probes are healthy. Moderation
+requires the media rehearsal component and a current owner/authority check.
 
 ## Configuration
 
@@ -74,7 +74,10 @@ wake one coalescing reconciliation task. Old bindings/services become unusable;
 the manager creates a fresh session, and later explicit operations use a fresh
 VideoRoomService and fresh handles. No old opaque token becomes valid again.
 
-If lease renewal fails, the runtime stops operations and disposes its resources.
+If an active meeting's lease renewal fails, the runtime stops operations and
+disposes its resources. Meetings already terminated by SG-13 stop renewing and
+use only their remaining finite lease for cleanup/outcomes; their expected
+renewal refusal cannot stop unrelated meetings.
 Clean shutdown closes handles and services before sessions, then drains the
 generic publisher and releases the exact owner generation. A failed cleanup
 does not publish a successful release. Expired ownership is not proof of remote

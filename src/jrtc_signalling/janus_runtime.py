@@ -4,15 +4,24 @@ import asyncio
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from jrtc import JanusSessionManager
 from jrtc.auth import JanusCredentials
+from jrtc.core.exceptions import JanusErrorResponse
 from jrtc.messaging import JanusEventPublisher
 from jrtc.messaging.factory import create_broker
-from jrtc.models.response import DetachedResponse, JanusResponse, TimeoutResponse, WebRTCUpResponse
+from jrtc.models.request import DetachPluginRequest
+from jrtc.models.response import (
+    DetachedResponse,
+    ErrorResponse,
+    JanusResponse,
+    SuccessResponse,
+    TimeoutResponse,
+    WebRTCUpResponse,
+)
 from jrtc.session.websocket import WebsocketSession
 from jrtc_video import VideoRoomPlugin, VideoRoomService
 
@@ -20,6 +29,9 @@ from .bus import BusConfig, BusError, _read, parse
 from .commands import CommandRuntime
 from .ownership import OPERATION_SECONDS, OwnerLease, OwnershipClient, OwnershipError
 from .runtime import ComponentStatus, DependencyHealth
+
+if TYPE_CHECKING:
+    from .moderation import ModerationEnforcer
 
 
 def janus_id(value: Any) -> int:
@@ -134,9 +146,19 @@ class HandleRegistry:
     def __init__(self, runtime: "JanusRuntime") -> None:
         self.runtime = runtime
         self.bindings: dict[str, _Binding] = {}
+        self.uncertain: dict[str, _Binding] = {}
+        self.unresolved_meetings: set[str] = set()
         self.locks = {meeting: asyncio.Lock() for meeting in runtime.config.meetings}
         self.closing = False
-        self.cleanup_failed = False
+        self._cleanup_failed = False
+
+    @property
+    def cleanup_failed(self) -> bool:
+        return self._cleanup_failed or bool(self.uncertain or self.unresolved_meetings)
+
+    @cleanup_failed.setter
+    def cleanup_failed(self, value: bool) -> None:
+        self._cleanup_failed = value
 
     def live(self, binding: _Binding) -> bool:
         return (
@@ -168,14 +190,17 @@ class HandleRegistry:
                     if ref.participant_id != participant or not self.live(binding):
                         raise OwnershipError("Handle binding is stale or conflicting.")
                     return ref
-            if len(self.bindings) >= 256:
+            if (
+                len(self.bindings) + len(self.uncertain) >= 256
+                or meeting in self.unresolved_meetings
+            ):
                 raise OwnershipError("Handle capacity exceeded.")
             session = self.runtime.session(meeting)
             plugin = VideoRoomPlugin(session=session, event_queue_size=64)
+            attached: _Binding | None = None
             try:
                 async with asyncio.timeout_at(deadline):
                     await plugin.attach()
-                    self.runtime.require(meeting, generation)
                     ref = HandleRef(
                         str(uuid4()),
                         meeting,
@@ -188,16 +213,23 @@ class HandleRegistry:
                         janus_id(plugin.id),
                     )
                     binding = _Binding(ref, plugin, session, session.generation)
+                    attached = binding
+                    self.runtime.require(meeting, generation)
                     if not self.live(binding):
                         raise OwnershipError("Janus ownership changed during attachment.")
                     self.bindings[ref.token] = binding
                     return ref
             except BaseException:
-                try:
-                    async with asyncio.timeout(2):
-                        await plugin.detach()
-                except BaseException:
-                    self.cleanup_failed = True
+                # An attach whose reply was lost may have allocated an unknown
+                # remote ID. A local no-op detach cannot certify its absence.
+                if attached is not None:
+                    with suppress(BaseException):
+                        await self._dispose(attached)
+                else:
+                    self.unresolved_meetings.add(meeting)
+                    with suppress(BaseException):
+                        async with asyncio.timeout(2):
+                            await plugin.detach()
                 raise
 
     async def invoke(self, ref: HandleRef, operation: Callable[[Any], Any]) -> Any:
@@ -222,12 +254,80 @@ class HandleRegistry:
 
     async def _dispose(self, binding: _Binding) -> None:
         self.bindings.pop(binding.ref.token, None)
+        self.uncertain[binding.ref.token] = binding
+        async with asyncio.timeout(2):
+            await binding.plugin.detach()
+            await self._confirm_detached(binding)
+
+    async def _confirm_detached(self, binding: _Binding) -> None:
+        # JRTC's detach also performs local cleanup when a session is lost and
+        # does not validate the reply. Local absence alone cannot prove removal.
+        # A replacement transport may query the old, immutable Janus IDs. It
+        # must never substitute its own IDs or adopt the old handle locally.
+        session = self.runtime.session(binding.ref.meeting_id)
         try:
-            async with asyncio.timeout(2):
-                await binding.plugin.detach()
-        except BaseException:
-            self.cleanup_failed = True
-            raise
+            response = await session.send(
+                DetachPluginRequest(
+                    session_id=binding.ref.janus_session_id,
+                    handle_id=binding.ref.janus_handle_id,
+                ),
+                timeout=1,
+                wait_for_event=False,
+            )
+        except JanusErrorResponse as exc:
+            if exc.code not in {458, 459}:
+                raise OwnershipError("Remote handle cleanup is unconfirmed.") from None
+        else:
+            if not isinstance(response, SuccessResponse) and not (
+                isinstance(response, ErrorResponse) and response.error.code in {458, 459}
+            ):
+                raise OwnershipError("Remote handle cleanup is unconfirmed.")
+        await binding.plugin.aclose()
+        self.uncertain.pop(binding.ref.token, None)
+
+    async def retry_cleanup(self) -> None:
+        # Bounded, fair retries; a failed handle cannot starve the rest. This
+        # runs separately from ownership renewal and the Janus receive loop.
+        for token, binding in tuple(self.uncertain.items())[:8]:
+            async with self.locks[binding.ref.meeting_id]:
+                if token not in self.uncertain:
+                    continue
+                try:
+                    deadline = self.runtime.require(
+                        binding.ref.meeting_id, binding.ref.owner_generation
+                    )
+                    async with asyncio.timeout_at(
+                        min(deadline, asyncio.get_running_loop().time() + 2)
+                    ):
+                        await self._confirm_detached(binding)
+                except Exception:
+                    self.uncertain.pop(token, None)
+                    self.uncertain[token] = binding
+
+    async def reconcile(
+        self,
+        meeting: str,
+        generation: int,
+        *,
+        participant: str | None = None,
+        preserve: set[str] | None = None,
+    ) -> None:
+        async with self.locks[meeting]:
+            self.runtime.require(meeting, generation)
+            for binding in (*tuple(self.bindings.values()), *tuple(self.uncertain.values())):
+                ref = binding.ref
+                if preserve and ref.token in preserve:
+                    continue
+                if ref.meeting_id != meeting or (
+                    participant is not None and ref.participant_id != participant
+                ):
+                    continue
+                if ref.token in self.bindings:
+                    await self._dispose(binding)
+                else:
+                    async with asyncio.timeout(2):
+                        await self._confirm_detached(binding)
+                self.runtime.require(meeting, generation)
 
     async def detach(self, ref: HandleRef) -> None:
         async with self.locks[ref.meeting_id]:
@@ -244,6 +344,8 @@ class HandleRegistry:
                     if binding.ref.meeting_id == meeting and not self.live(binding):
                         with suppress(Exception):
                             await self._dispose(binding)
+
+        await self.retry_cleanup()
 
     async def close(self) -> None:
         self.closing = True
@@ -282,7 +384,9 @@ class JanusRuntime:
         self.services: dict[tuple[Any, int], VideoRoomService] = {}
         self.control = CommandRuntime(bus)
         self.control.consumer.enforcer = self
+        self.moderation: ModerationEnforcer | None = None
         self.task: asyncio.Task[None] | None = None
+        self.reconciler: asyncio.Task[None] | None = None
         self.stopping = asyncio.Event()
         self.cleanup: asyncio.Task[None] | None = None
 
@@ -315,6 +419,7 @@ class JanusRuntime:
         self.active = True
         await self.control.start()
         self.task = asyncio.create_task(self._maintain(), name="gateway-janus-ownership")
+        self.reconciler = asyncio.create_task(self._reconcile(), name="gateway-janus-cleanup")
 
     def require(self, meeting: str, generation: int) -> float:
         now = asyncio.get_running_loop().time()
@@ -373,9 +478,9 @@ class JanusRuntime:
                 raise OwnershipError("Wrong owner.")
         except OwnershipError:
             return "failed", "owner_lost"
-        # Physical moderation/admission is SG-13. A routed request and a live
-        # Janus connection alone are not evidence that permission was enforced.
-        return "failed", "unavailable"
+        if self.moderation is None:
+            return "failed", "unavailable"
+        return await self.moderation.apply(command)
 
     async def _maintain(self) -> None:
         renew_at = asyncio.get_running_loop().time() + 5
@@ -385,7 +490,6 @@ class JanusRuntime:
                     self.loss.clear()
                     if self.lifecycle is not None:
                         await self.lifecycle.lost()
-                await self.registry.prune()
                 for key, service in tuple(self.services.items()):
                     if not service.session.ready or key != (
                         service.session,
@@ -402,9 +506,18 @@ class JanusRuntime:
                         self.observers.pop(session, None)
                 if asyncio.get_running_loop().time() >= renew_at:
                     for meeting, lease in tuple(self.leases.items()):
-                        self.leases[meeting] = await self.authority.request(
-                            meeting, "renew", lease.generation
-                        )
+                        # Django refuses renewal after meeting end. Retain the
+                        # existing finite lease for cleanup/outcome delivery;
+                        # never let that refusal drain other owned meetings.
+                        if self.moderation is not None and meeting in self.moderation.terminated:
+                            continue
+                        try:
+                            self.leases[meeting] = await self.authority.request(
+                                meeting, "renew", lease.generation
+                            )
+                        except OwnershipError:
+                            if self.moderation is None or meeting not in self.moderation.terminated:
+                                raise
                     renew_at = asyncio.get_running_loop().time() + 5
                 with suppress(TimeoutError):
                     await asyncio.wait_for(self.loss.wait(), 0.5)
@@ -413,6 +526,22 @@ class JanusRuntime:
         except Exception:
             self.active = False
             # Never reacquire an expired/uncertain generation in this process.
+            await self.drain()
+            with suppress(Exception):
+                await self.aclose()
+
+    async def _reconcile(self) -> None:
+        try:
+            while not self.stopping.is_set():
+                await self.registry.prune()
+                if self.moderation is not None:
+                    await self.moderation.reconcile()
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(self.stopping.wait(), 0.5)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.active = False
             await self.drain()
             with suppress(Exception):
                 await self.aclose()
@@ -433,9 +562,10 @@ class JanusRuntime:
 
     async def _close(self, caller: asyncio.Task[Any] | None) -> None:
         await self.drain()
-        if self.task is not None and self.task is not caller:
-            self.task.cancel()
-            await asyncio.gather(self.task, return_exceptions=True)
+        tasks = [t for t in (self.task, self.reconciler) if t is not None and t is not caller]
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
         clean = True
 
         async def attempt(operation: Any, budget: float = 3) -> None:
@@ -494,5 +624,9 @@ class JanusRuntime:
             )
             else self.control.status,
             authority=ComponentStatus.READY if current else ComponentStatus.UNAVAILABLE,
-            ownership=ComponentStatus.READY if current else ComponentStatus.UNAVAILABLE,
+            ownership=(
+                ComponentStatus.DEGRADED if self.registry.cleanup_failed else ComponentStatus.READY
+            )
+            if current
+            else ComponentStatus.UNAVAILABLE,
         )

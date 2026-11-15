@@ -27,6 +27,12 @@ class Session:
         for plugin in tuple(self.plugins.values()):
             await plugin.detach()
 
+    async def send(self, request, **kwargs):
+        from jrtc.models.response import SuccessResponse
+
+        self.plugins.pop(request.handle_id, None)
+        return SuccessResponse(janus="success")
+
 
 class Plugin:
     count = 0
@@ -42,6 +48,9 @@ class Plugin:
 
     async def detach(self):
         self.session.plugins.pop(self.id, None)
+        self.closed = True
+
+    async def aclose(self):
         self.closed = True
 
 

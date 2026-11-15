@@ -59,9 +59,10 @@ on the same host; do not use a network filesystem or give two replicas separate
 inboxes under the same owner identity. SG-07 provides the live owner lease/fence;
 a configured producer ID alone is never a lease. The default enforcer returns
 failed/owner_lost. The optional [SG-07 runtime](RUNTIME_OWNERSHIP.md) validates its
-live lease/generation and returns failed/unavailable for a correctly routed
-command until SG-13 implements physical enforcement. Neither result claims an
-applied effect. Readiness remains 503.
+live lease/generation. With the media rehearsal enabled, [SG-13 moderation](MODERATION.md)
+physically enforces current commands; without that media component it returns
+failed/unavailable. Applied requires confirmed cleanup, not a live Janus connection
+or queue publication. Readiness remains 503.
 
 The inbox stores a canonical command digest and durable accepted/terminal outcomes.
 A matching duplicate replays the existing outcome; an ID with different content

@@ -8,6 +8,7 @@ import secrets
 import time
 from collections import deque
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -90,6 +91,11 @@ class MediaHub:
         key = claims["meeting_id"], claims["participant_id"]
         lease = self.runtime.leases.get(key[0])
         if self.closing or lease is None or len(self.peers) >= 128:
+            raise AuthError("UNAVAILABLE")
+        if key[0] in self.runtime.registry.unresolved_meetings or any(
+            (b.ref.meeting_id, b.ref.participant_id) == key
+            for b in self.runtime.registry.uncertain.values()
+        ):
             raise AuthError("UNAVAILABLE")
         if key in self.peers:
             # Reconnect takeover and inherited handles are explicitly SG-14/15.
@@ -190,6 +196,24 @@ class MediaHub:
                             "janus_handle_id": str(handle.ref.janus_handle_id),
                         },
                     )
+
+    async def terminate(self, meeting: str, generation: int) -> None:
+        async with self.room_locks[meeting]:
+            room = self.rooms.get(meeting)
+            if room is None:
+                return
+            exists = await self.runtime.management(meeting, generation, "exists", room.id)
+            if exists.data.exists:
+                await self.runtime.management(
+                    meeting,
+                    generation,
+                    "destroy",
+                    VideoRoomDestroyRequest(room=room.id, secret=room.secret, permanent=False),
+                )
+            exists = await self.runtime.management(meeting, generation, "exists", room.id)
+            if exists.data.exists:
+                raise OwnershipError("Meeting resources remain live.")
+            self.rooms.pop(meeting, None)
 
     async def aclose(self) -> None:
         self.closing = True
@@ -878,10 +902,8 @@ class MediaPeer:
         for handle in tuple(self.handles.values()):
             if handle.ref.token not in self.runtime.registry.bindings:
                 continue  # A cancelled/failed SDK call already disposed this token.
-            try:
+            # The registry retains the exact IDs of any unconfirmed removal.
+            with suppress(Exception):
                 await self.runtime.registry.detach(handle.ref)
-            except Exception:
-                # Runtime teardown still owns uncertain bindings and retains its lease.
-                self.runtime.registry.cleanup_failed = True
         self.handles.clear()
         self.hub.topology(self.meeting)

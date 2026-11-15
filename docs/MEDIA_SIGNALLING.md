@@ -92,14 +92,14 @@ bounded Django authority preflight, then the validated grant is applied locally
 to SDP and the owned Janus handle. Only ping/ICE can use the existing 0.5-second
 grant cache. There is **still an authority HTTP round trip on a sensitive
 transition**. This task does not claim the eventual zero-authority-RPC latency
-target: that optimisation requires the later live revocation/fencing work.
+target: SG-13 retains this preflight as well as adding periodic authority checks.
 
 SDP, answers and plugin events travel browser → gateway → async JRTC → Janus;
 they are never relayed through Django ORM or Broka. Authority requests carry
 verified claims and operation names only. A revocation racing an SDK reply cannot
-restore a grant. There is no stale-authority fallback. The SG-13 command consumer
-still reports unavailable until physical enforcement is implemented, so this
-rehearsal must not be treated as production revocation assurance.
+restore a grant. There is no stale-authority fallback. [SG-13](MODERATION.md)
+physically enforces revocation and termination, confirms cleanup and retries
+uncertain removals. This opt-in rehearsal is still not production readiness.
 
 ## Bounds and recovery
 
