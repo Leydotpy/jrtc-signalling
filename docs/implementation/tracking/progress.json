@@ -201,16 +201,18 @@
     {
       "id": "SG-13",
       "title": "Revocation, denial, kick, and meeting termination",
-      "status": "NOT_STARTED",
+      "status": "READY_FOR_REVIEW",
       "dependencies": [
         "SG-06",
         "SG-08",
         "SG-11"
       ],
       "repos": "synq + gateway",
-      "report": null,
-      "commits": {},
-      "last_updated": null
+      "report": "tracking/reports/SG-13.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "ffd4b1438e2df9f01ca10174d9af61073515c357"
+      },
+      "last_updated": "2026-11-15T07:30:26.552912+00:00"
     },
     {
       "id": "SG-14",

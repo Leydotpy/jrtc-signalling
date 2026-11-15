@@ -1,6 +1,6 @@
 # Implementation progress
 
-Updated 2026-11-14. DONE means implemented and verified for the stated task scope,
+Updated 2026-11-15. DONE means implemented and verified for the stated task scope,
 not deployed or approved for production.
 
 Work is on `codex/gateway-foundation`; it has not been merged into `main`.
@@ -20,9 +20,20 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-10 Lifecycle events | DONE | [Report](tracking/reports/SG-10.md), gateway `16a3272ca4625b133f24dbbf0e8fdd1e036c8694`; Synq `a4ea69571bd9f21e8301f1b656ebce626b9c392f` |
 | SG-11 State projection/SSE | DONE | [Report](tracking/reports/SG-11.md), Synq `2cd29394081243cc0be9feb62d7359f5a3dcf041` |
 | SG-12 Client transport/SSE | DONE | [Report](tracking/reports/SG-12.md); browser CI 43563938796, runtime `a623d2f`, client `f2c080d`, Synq `d8f47f3`, plugin `eed4309` |
-| SG-13–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-13 Moderation | READY_FOR_REVIEW | [Report](tracking/reports/SG-13.md); local `ffd4b14`, implementation/verification complete; push blocked by automatic approval review |
+| SG-14–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
+
+SG-13 implements physical revocation, denial, kick, permission updates and meeting
+termination, with monotonic epoch barriers and cleanup reconciliation. **513
+gateway tests** passed with real Janus/Redis/TURN and zero skips, plus **242 Synq
+tests**, three new actual Django/Broka/Janus moderation tests, both existing live
+integrations and six authority compatibility tests. Lint, format, types, schema
+and package builds passed. [The report](tracking/reports/SG-13.md) records exact
+commands and limits. Implementation is committed locally as `ffd4b14`; automatic
+approval review blocked its upload to the public GitHub repository. Remote
+publication/hosted CI remain pending explicit authorization, and SG-14 is not started.
 
 SG-12 passed the complete Chromium/React integration in
 [browser CI 43563938796](https://github.com/Leydotpy/synq.js/actions/runs/43563938796):
@@ -33,8 +44,9 @@ locally with real Janus/Redis/TURN and zero skips; final gateway CI passed all s
 jobs. **242 Synq tests**, both live integrations, **49 client tests**, five
 publishing checks, 18 app tests, builds/types/lint/schema/migration checks passed.
 The [report](tracking/reports/SG-12.md) records exact pins, fixes and scope limits.
-SG-13 through SG-18 remain: **six tasks**, starting with complete revocation,
-denial, kick and meeting termination. No merge, cutover or deployment occurred.
+At SG-12 completion, SG-13 through SG-18 remained: six tasks. The current SG-13
+implementation and publication status are recorded above. No merge, cutover or
+deployment occurred.
 
 SG-11 passed **228 Synq tests** locally against PostgreSQL 16.2/Redis, zero skips,
 and both actual Janus integrations: the existing lifecycle path and the new
