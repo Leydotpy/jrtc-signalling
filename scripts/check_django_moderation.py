@@ -22,6 +22,9 @@ def main():
     root = Path(__file__).resolve().parents[1]
     sys.path[:0] = [str(root / "src"), str(root / "tests"), str(args.synq.resolve() / "src")]
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "conf.gateway_postgres_test_settings")
+    # Exercise the same broker outage for legacy notifications and commands,
+    # regardless of which isolated Redis port the local runner selected.
+    os.environ["SOCKET_IO_REDIS_URL"] = os.environ["GATEWAY_TEST_REDIS_URL"]
     import django
 
     django.setup()
@@ -35,8 +38,9 @@ def main():
     from apps.meetings.services.gateway_dispatcher import GatewayCommandWorker
     from apps.meetings.services.lifecycle import MeetingLifecycleService
     from apps.meetings.tests.test_gateway_ownership import OwnershipFixture
-    from asgiref.sync import async_to_sync, sync_to_async
+    from asgiref.sync import sync_to_async
     from django.core.handlers.asgi import ASGIHandler
+    from django.db import connections
     from django.test import TransactionTestCase
     from django.test.runner import DiscoverRunner
     from media_helpers import Browser, publish_payload
@@ -260,6 +264,7 @@ def main():
                         await asyncio.gather(worker_task, return_exceptions=True)
                     await worker.transport.close()
                     await server.stop()
+                    await sync_to_async(connections.close_all)()
 
             with (
                 tempfile.TemporaryDirectory() as directory,
@@ -267,7 +272,11 @@ def main():
                     "apps.meetings.services.gateway_ownership.BusConfig.read", return_value=self.bus
                 ),
             ):
-                async_to_sync(run)(Path(directory))
+                # A server owns its event loop. Wrapping it in async_to_sync
+                # routes every in-process Django request back through this one
+                # test thread, so a stalled legacy Socket.IO on_commit callback
+                # also blocks otherwise independent authority and owner RPCs.
+                asyncio.run(run(Path(directory)))
 
         def test_signed_moderation_confirms_remote_removal_and_termination(self):
             self.exercise(broker_down=False)
