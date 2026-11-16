@@ -94,6 +94,7 @@ class SocketSession:
         self.transport_lost = False
         self.failure = asyncio.Event()
         self.revocation = asyncio.Event()
+        self.superseded = False
         self.finished = asyncio.Event()
         self.metrics = endpoint.metrics
 
@@ -376,6 +377,7 @@ class SocketSession:
                 self.observation = await runtime.lifecycle.open(
                     self.authorization.claims, lease.generation, hello["id"]
                 )
+            self.endpoint.handoffs.check(self)
             self._reply(hello, result)
             tasks = [
                 asyncio.create_task(coro)

@@ -10,6 +10,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from .auth import AuthConfig, AuthError, Authority, AuthorizationSession, TicketVerifier
 from .config import Settings
 from .contracts import ContractError, decode_message
+from .reconnect import ConnectionHandoffs
 from .signalling import CloseSession, DispatchMetrics, SocketSession
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class AuthenticatedEndpoint:
         self.handlers: set[asyncio.Task[Any]] = set()
         self.connections: dict[WebSocket, AuthorizationSession | None] = {}
         self.sessions: set[SocketSession] = set()
+        self.handoffs = ConnectionHandoffs()
         self.moderation = None
         if media is not None:
             from .moderation import ModerationEnforcer
@@ -137,6 +139,7 @@ class AuthenticatedEndpoint:
                 self.moderation.check(session)
             socket_session = SocketSession(self, websocket, session)
             self.sessions.add(socket_session)
+            await self.handoffs.claim(socket_session)
             await socket_session.run(request)
         except WebSocketDisconnect:
             pass
@@ -144,6 +147,10 @@ class AuthenticatedEndpoint:
             await self._close(websocket, exc.code)
         except AuthError as exc:
             code = 1013 if exc.code in {"UNAVAILABLE", "OVERLOADED", "RATE_LIMITED"} else 1008
+            if socket_session is not None and socket_session.superseded:
+                code = 4009
+            elif exc.code == "EXPIRED_TICKET":
+                code = 4001
             await self._close(websocket, code)
         except ContractError:
             await self._close(websocket, 1008)
@@ -158,6 +165,7 @@ class AuthenticatedEndpoint:
             if socket_session is not None:
                 self.sessions.discard(socket_session)
                 socket_session.finished.set()
+                self.handoffs.release(socket_session)
 
     async def _close(self, websocket: WebSocket, code: int) -> None:
         try:

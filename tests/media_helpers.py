@@ -62,7 +62,7 @@ class Browser:
             await asyncio.Event().wait()
         await self.outgoing.put(event)
 
-    async def open(self):
+    async def open(self, operation="session.hello"):
         scope = {
             "type": "websocket",
             "asgi": {"version": "3.0", "spec_version": "2.4"},
@@ -79,7 +79,10 @@ class Browser:
         self.task = asyncio.create_task(self.app(scope, self.incoming.get, self.output))
         await self.incoming.put({"type": "websocket.connect"})
         assert (await asyncio.wait_for(self.outgoing.get(), 5))["type"] == "websocket.accept"
-        return await self.request("session.hello", {"ticket": self.sign(self.claims)})
+        payload = {"ticket": self.sign(self.claims)}
+        if operation == "session.resume":
+            payload["last_sequence"] = 0
+        return await self.request(operation, payload)
 
     def message(self, op, payload=None):
         self.sequence += 1

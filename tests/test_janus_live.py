@@ -241,6 +241,45 @@ async def test_real_janus_loss_records_terminal_recovery_snapshot(live_runtime, 
                 await asyncio.sleep(0.02)
 
 
+async def test_real_janus_resume_replaces_handles_and_observation_stream(
+    live_runtime, claims, sign
+):
+    runtime, _server, meeting, app = live_runtime
+    old = Browser(
+        app,
+        {
+            **claims,
+            "meeting_id": meeting,
+            "participant_id": str(uuid4()),
+            "participant_session_id": str(uuid4()),
+        },
+        sign,
+    )
+    new = Browser(app, {**old.claims, "jti": str(uuid4()), "generation": 2}, sign)
+    try:
+        assert (await old.open())["ok"]
+        joined = await old.request("media.publisher.join")
+        assert joined["ok"], joined.get("error")
+        previous = next(iter(runtime.registry.bindings.values())).ref
+        observation = next(iter(runtime.lifecycle.connections.values()))
+        assert (await new.open("session.resume"))["ok"]
+        await old.task
+        assert observation.closed
+        assert previous.token not in runtime.registry.bindings
+        joined = await new.request("media.publisher.join")
+        assert joined["ok"], joined.get("error")
+        replacement = next(iter(runtime.registry.bindings.values())).ref
+        assert replacement.token != previous.token
+        assert replacement.janus_handle_id != previous.janus_handle_id
+        current = next(iter(runtime.lifecycle.connections.values()))
+        assert current.body["generation"] == 2
+        assert current is not observation
+        assert (await new.request("session.ping"))["ok"]
+    finally:
+        await old.close()
+        await new.close()
+
+
 async def test_real_janus_publisher_departure_preserves_other_participant(
     live_runtime, claims, sign, monkeypatch
 ):

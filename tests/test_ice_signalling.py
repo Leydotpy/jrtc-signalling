@@ -272,7 +272,7 @@ async def test_reconnect_never_adopts_previous_handle_or_negotiation(rehearsal):
     old_handles = set(r.runtime.registry.bindings)
     identity = browser.claims["participant_id"]
     await browser.close()
-    new = await r.browser(participant_id=identity)
+    new = await r.browser(participant_id=identity, generation=browser.claims["generation"] + 1)
     assert (await new.request("media.trickle", payload("publisher", old)))["error"][
         "code"
     ] == "STALE_NEGOTIATION"

@@ -84,6 +84,9 @@ This retains the existing remote-authority cache limitation described above.
   control-only shutdown (1012 with media enabled). Reasons and
   logs never contain JWTs, raw frames, authority replies, SDP or ICE.
 
+SG-14 adds close 4001 for expired tickets and 4009 for a superseded connection.
+See [connection recovery](RECONNECT.md) for handoff, generation and retry bounds.
+
 `scripts/check_django_authority.py` runs the actual Synq issuer, gateway verifier,
 gateway authorization session and Django shared receipt/permission service in
 one test environment. Its adapter crosses the Python async boundary; HTTP TLS is

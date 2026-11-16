@@ -98,7 +98,7 @@ class MediaHub:
         ):
             raise AuthError("UNAVAILABLE")
         if key in self.peers:
-            # Reconnect takeover and inherited handles are explicitly SG-14/15.
+            # A handoff must finish confirmed cleanup before opening a new peer.
             raise AuthError("STALE_GENERATION")
         self.runtime.require(key[0], lease.generation)
         peer = MediaPeer(self, authorization, lease.generation, emit)
@@ -263,8 +263,10 @@ class MediaPeer:
 
     def check(self) -> None:
         auth = self.authorization
-        if self.closed or auth.revoked or time.time() >= auth.claims["exp"]:
+        if self.closed or auth.revoked:
             raise AuthError("STALE_AUTHORIZATION")
+        if time.time() >= auth.claims["exp"]:
+            raise AuthError("EXPIRED_TICKET")
         self.runtime.require(self.meeting, self.generation)
         for role, handle in self.handles.items():
             binding = self.runtime.registry.bindings.get(handle.ref.token)
@@ -898,7 +900,9 @@ class MediaPeer:
         if self.closed:
             return
         self.closed = True
-        self.hub.peers.pop((self.meeting, self.participant), None)
+        key = self.meeting, self.participant
+        if self.hub.peers.get(key) is self:
+            self.hub.peers.pop(key)
         for handle in tuple(self.handles.values()):
             if handle.ref.token not in self.runtime.registry.bindings:
                 continue  # A cancelled/failed SDK call already disposed this token.

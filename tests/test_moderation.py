@@ -153,7 +153,11 @@ async def test_permission_epoch_change_closes_host_media_without_granting_from_c
         await r.browser(participant_id=host.claims["participant_id"])
     # Only a new authority-validated epoch can open a connection, never the bus
     # command alone. The test authority deliberately still accepts stale JWTs.
-    newer = await r.browser(participant_id=host.claims["participant_id"], authorization_epoch=5)
+    newer = await r.browser(
+        participant_id=host.claims["participant_id"],
+        authorization_epoch=5,
+        generation=host.claims["generation"] + 1,
+    )
     assert await r.runtime.apply(change) == ("failed", "revoked")
     assert (await newer.request("session.ping"))["ok"]
 
