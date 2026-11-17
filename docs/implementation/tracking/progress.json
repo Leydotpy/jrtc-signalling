@@ -217,16 +217,20 @@
     {
       "id": "SG-14",
       "title": "Reconnect, resumable sessions, stale event protection",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-09",
         "SG-12",
         "SG-13"
       ],
       "repos": "gateway + synq.js + synq",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-11-15T22:13:14.074216+00:00"
+      "report": "tracking/reports/SG-14.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "4676d03bb108d048bbae726f23e3b4c52a14d5f8",
+        "Leydotpy/synq": "ef790c3f26ab875e4909e74e967214bbf26bd1eb",
+        "Leydotpy/synq.js": "c175fc545779c8f0096e77dd344359631f3725a2"
+      },
+      "last_updated": "2026-11-17T17:13:09.550451+00:00"
     },
     {
       "id": "SG-15",

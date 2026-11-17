@@ -104,6 +104,9 @@ deployment has been created.
 ## Next dependency
 
 SG-13 now enforces moderation with the optional runtime and media rehearsal enabled.
-SG-14 adds automatic reconnect/resume and stale-generation recovery. The default
-enforcer without a runtime still reports failed/owner_lost. Follow the
+[SG-14](docs/RECONNECT.md) now implements and verifies automatic reconnect/resume
+and stale-generation recovery across the gateway, Django and browser client.
+SG-15 is next: multiworker ownership routing, lease-loss reconciliation and
+graceful drain. The default enforcer without a runtime still reports
+failed/owner_lost. Follow the
 [task order](docs/implementation/EXECUTION_ORDER.md).

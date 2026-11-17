@@ -24,13 +24,20 @@ Multiworker routing, draining and takeover remain SG-15.
 
 Close `4001` identifies ticket expiry so an authenticated browser can obtain a
 fresh resume ticket. Close `4009` identifies supersession and is terminal for that
-tab. Policy denial (`1008`) is also terminal. Temporary failures use the existing
+tab. Policy denial (`1008`) remains terminal for admitted media. An invalidated
+lobby grant may reconcile only when fresh Django state confirms an admitted state,
+the same current session/generation and a newer authorization epoch; the ticket
+endpoint still rechecks current permissions. Waiting, denied, removed and
+superseded sessions cannot use this path. Temporary failures use the existing
 `1012`/`1013` codes. Close reasons contain no credentials or media payloads.
 
 The optional gateway client retains local capture tracks and closes old peer
-connections on transport loss. It requests at most three replacement generations,
-with backoff and a 30-second deadline, quietly reconciles Django state and rebuilds
-publisher/subscriber media. Visibility/online wake checks detect expired or dead
+connections on transport loss. It requests at most six replacement generations,
+with 0.5/1/2/4/8/8-second backoff and a 30-second deadline, quietly reconciles Django
+state and rebuilds
+publisher/subscriber media. Replacement Janus readiness and confirmed old-handle
+cleanup may settle separately; the retry window covers that interval while retaining
+both fences. Visibility/online wake checks detect expired or dead
 sockets. Revocation, supersession and invalid responses stop recovery. If a ticket
 POST response is lost, the client cannot know the committed generation and requires
 explicit rejoin; it never guesses or silently creates a new admission.
@@ -38,3 +45,12 @@ explicit rejoin; it never guesses or silently creates a new admission.
 Deployment remains disabled. Roll back the matching gateway, Django dependency
 pin and frontend cohort together after draining existing sessions. The legacy
 transport and JRTC/plugin dependencies are unchanged.
+
+A meeting-end POST may revoke its own gateway before its HTTP acknowledgement.
+The client completes that POST and final Django snapshot within one bounded HTTP
+deadline (15 seconds by default), without replay. The snapshot must be ended;
+responses and pending credential lookups cannot cross into a newly joined lifetime.
+Ordinary requests still cancel with teardown.
+
+Exact revisions and acceptance evidence are in the
+[SG-14 report](implementation/tracking/reports/SG-14.md).
