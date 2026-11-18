@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
@@ -60,10 +61,15 @@ def parse(raw: bytes) -> dict[str, Any]:
         raise BusError("Invalid control message.") from None
 
 
-def command_route(owner: str) -> str:
+def command_route(owner: str, incarnation: str | None = None) -> str:
     if not ID.fullmatch(owner):
         raise BusError("Invalid control identity.")
-    return f"{COMMANDS}.{owner}"
+    route = f"{COMMANDS}.{owner}"
+    if incarnation is not None:
+        if str(UUID(incarnation)) != incarnation:
+            raise BusError("Invalid worker incarnation.")
+        return f"{route}.{incarnation}"
+    return route
 
 
 @dataclass(frozen=True, repr=False)

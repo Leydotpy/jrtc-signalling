@@ -146,13 +146,14 @@ class CommandConsumer:
 
 
 class CommandRuntime:
-    def __init__(self, config: BusConfig) -> None:
+    def __init__(self, config: BusConfig, *, incarnation: str | None = None) -> None:
         if config.inbox_path is None:
             raise BusError("Persistent command inbox required.")
         self.config = config
         self.store = CommandStore(config.inbox_path)
         self.authority = HTTPCommandAuthority(config)
         self.consumer = CommandConsumer(config, self.store, self.authority)
+        self.route = command_route(config.signer.producer, incarnation)
         self.transport = Streams(config.redis_url, "gateway-control-v1")
         self.status = ComponentStatus.UNAVAILABLE
         self.stop = asyncio.Event()
@@ -177,9 +178,7 @@ class CommandRuntime:
         while not self.stop.is_set():
             try:
                 await self.transport.start()
-                await self.transport.subscribe(
-                    command_route(self.config.signer.producer), self.consumer.handle
-                )
+                await self.transport.subscribe(self.route, self.consumer.handle)
                 while not self.stop.is_set():
                     await asyncio.to_thread(self.store.maintain, time.time())
                     await self.relay()

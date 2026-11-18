@@ -8,6 +8,7 @@ import pytest
 from starlette.datastructures import Headers
 
 from jrtc_signalling.auth import AuthError
+from jrtc_signalling.bus import command_route
 from jrtc_signalling.multiworker import Elections, Route, worker_routes
 from jrtc_signalling.ownership import OwnerLease, OwnershipError, validate_owner_request
 from jrtc_signalling.routing import DirectConnection, resolve
@@ -127,3 +128,11 @@ async def test_redis_single_flight_expiry_and_delayed_withdrawal():
     finally:
         await a.redis.delete(a.key(meeting))
         await asyncio.gather(a.redis.aclose(), b.redis.aclose())
+
+
+def test_rolling_processes_with_one_signer_have_distinct_command_streams():
+    old, new = str(uuid4()), str(uuid4())
+    assert command_route("a", old) != command_route("a", new)
+    assert command_route("a", old).startswith(command_route("a") + ".")
+    with pytest.raises(ValueError):
+        command_route("a", "unknown")

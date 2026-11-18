@@ -392,7 +392,7 @@ class JanusRuntime:
         self.close_connections: Callable[[], Any] | None = None
         self.registry = HandleRegistry(self)
         self.services: dict[tuple[Any, int], VideoRoomService] = {}
-        self.control = CommandRuntime(bus)
+        self.control = CommandRuntime(bus, incarnation=self.incarnation if self.elections else None)
         self.control.consumer.enforcer = self
         self.moderation: ModerationEnforcer | None = None
         self.task: asyncio.Task[None] | None = None
