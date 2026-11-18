@@ -7,6 +7,7 @@ from typing import Any
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
+from websockets.typing import Origin, Subprotocol
 
 from .auth import AuthError
 from .config import Settings
@@ -56,8 +57,8 @@ async def relay(
     try:
         async with DirectConnection(
             target,
-            origin=browser.headers["origin"],
-            subprotocols=[PROTOCOL],
+            origin=Origin(browser.headers["origin"]),
+            subprotocols=[Subprotocol(PROTOCOL)],
             additional_headers={HOP: "1"},
             open_timeout=handshake_budget,
             close_timeout=1,
