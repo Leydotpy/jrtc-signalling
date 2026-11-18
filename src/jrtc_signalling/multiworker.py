@@ -110,6 +110,7 @@ class Elections:
             runtime.bus.redis_url, decode_responses=True, socket_timeout=1, socket_connect_timeout=1
         )
         self.sessions: dict[str, WebsocketSession] = {}
+        self.registering: set[str] = set()
 
     def key(self, meeting: str) -> str:
         return f"synq:gateway:owner:v1:{meeting}"
@@ -220,9 +221,21 @@ class Elections:
                     or runtime.session(meeting) is not session
                 ):
                     raise OwnershipError("Worker or session is draining.")
-                lease = await runtime.authority.request(
-                    meeting, "elect", previous_generation, pool=self.pool, session_id=session.id
-                )
+                self.registering.add(meeting)
+
+                async def register() -> OwnerLease:
+                    return await runtime.authority.request(
+                        meeting, "elect", previous_generation, pool=self.pool, session_id=session.id
+                    )
+
+                try:
+                    lease = await register()
+                except OwnershipBusy:
+                    raise
+                except OwnershipError:
+                    # Replay only the same expected generation and exact SDK session.
+                    lease = await register()
+                self.registering.remove(meeting)
                 # Retain the SQL grant for cleanup even if Redis rejects the promotion.
                 runtime.leases[meeting] = lease
                 started = asyncio.get_running_loop().time()
@@ -234,6 +247,7 @@ class Elections:
                 self.sessions[meeting] = session
                 return replace(lease, deadline=min(lease.deadline, started + ROUTE_TTL - 1))
         except OwnershipBusy:
+            self.registering.discard(meeting)
             return None
         finally:
             if not published:

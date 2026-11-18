@@ -117,6 +117,16 @@ async def test_redis_single_flight_expiry_and_delayed_withdrawal():
             lease = leases[index]
             assert (await standby.lookup(meeting)) == winner.route(lease)
             assert await winner.swap(meeting, winner.route(lease).encode(), "")
+        # A lost SQL response is retried only with the same recorded session and generation.
+        grant = a.runtime.authority.request.return_value
+        a.runtime.authority.request.side_effect = [OwnershipError("Lost reply"), grant]
+        recovered = await a.campaign(meeting)
+        assert recovered is not None
+        calls = a.runtime.authority.request.await_args_list
+        assert calls[-1] == calls[-2]
+        assert not a.registering
+        await a.withdraw({meeting: recovered})
+        a.runtime.authority.request.side_effect = None
         # Force expiry of the old route; a delayed withdraw must not delete its successor.
         old = await a.campaign(meeting)
         assert await a.redis.pexpire(a.key(meeting), 0)

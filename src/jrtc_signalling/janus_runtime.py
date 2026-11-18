@@ -445,7 +445,7 @@ class JanusRuntime:
             except Exception:
                 # A standby stays available for the next election after an outage.
                 # An ambiguous grant may already be durable. Retire that process.
-                if meeting in self.leases:
+                if meeting in self.leases or meeting in elections.registering:
                     raise
                 return
             if lease is not None:
