@@ -235,16 +235,19 @@
     {
       "id": "SG-15",
       "title": "Gateway owner routing, leases and graceful drain",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "dependencies": [
         "SG-07",
         "SG-10",
         "SG-14"
       ],
       "repos": "gateway + synq",
-      "report": null,
-      "commits": {},
-      "last_updated": null
+      "report": "tracking/reports/SG-15.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "1b4ecd125ff730d76ccf1baf2752478572562299",
+        "Leydotpy/synq": "e0b0481ce05a2b1b18d43ef6f6fad235042009be"
+      },
+      "last_updated": "2026-11-18T23:49:24.127318+00:00"
     },
     {
       "id": "SG-16",

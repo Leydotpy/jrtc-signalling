@@ -1,6 +1,6 @@
 # Implementation progress
 
-Updated 2026-11-17. DONE means implemented and verified for the stated task scope,
+Updated 2026-11-19. DONE means implemented and verified for the stated task scope,
 not deployed or approved for production.
 
 Work is on `codex/gateway-foundation`; it has not been merged into `main`.
@@ -22,9 +22,12 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-12 Client transport/SSE | DONE | [Report](tracking/reports/SG-12.md); browser CI 43563938796, runtime `a623d2f`, client `f2c080d`, Synq `d8f47f3`, plugin `eed4309` |
 | SG-13 Moderation | DONE | [Report](tracking/reports/SG-13.md); implementation `e05d0bd`, acceptance runner `82f34a0`; all seven jobs passed in [CI 43715489748](https://github.com/Leydotpy/jrtc-signalling/actions/runs/43715489748) |
 | SG-14 Reconnect/resume | DONE | [Report](tracking/reports/SG-14.md); gateway `4676d03`, Synq `68b0db2`, client `f43abaf`; [browser CI 44133663381](https://github.com/Leydotpy/synq.js/actions/runs/44133663381) |
-| SG-15–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-15 Multiworker ownership and drain | DONE | [Report](tracking/reports/SG-15.md), gateway `1b4ecd1`, Synq `e0b0481` |
+| SG-16–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
+
+SG-15 exercised two gateway processes, four ownership generations, TLS routing, live WebRTC audio, PostgreSQL fencing and Redis outage recovery. The task report records the commands, results and rollback check. [SG-15 report](tracking/reports/SG-15.md)
 
 SG-14 implements fresh-ticket resume, bounded retry, confirmed old-handle cleanup,
 stale-generation protection and automatic media rebuilding without another
@@ -39,8 +42,7 @@ offline/online, ticket expiry and Janus restart all restore fresh media. The bro
 also verifies quiet state repair, removal denial and meeting end when gateway
 revocation precedes its HTTP acknowledgement. Local TypeScript compilation and all
 78 client tests passed. The [report](tracking/reports/SG-14.md) records exact pins,
-failure corrections and limits. SG-00–SG-14 are complete for their stated scope;
-SG-15 is next. No merge, cohort enablement or deployment occurred.
+failure corrections and limits.
 
 SG-13 implements physical revocation, denial, kick, permission updates and meeting
 termination, with monotonic epoch barriers and cleanup reconciliation. **513
@@ -110,15 +112,14 @@ implemented behind an explicit cohort and passed SG-12 browser verification.
 SG-13 adds physical moderation, current-grant reconciliation during broker outages,
 and confirmed handle/room cleanup. Uncertain media cleanup retains its conservative
 lease fence. SG-14 adds bounded automatic resumption, fresh authority, quiet state
-repair and rebuilt media. Multiworker routing and reconciled failover remain SG-15.
+repair and rebuilt media. SG-15 routes sockets and commands to the elected worker and reconciles prior Janus resources before takeover.
 
-After SG-14, the remaining dependency order is:
+Three tasks remain after SG-15.
 
 | Task | Remaining work |
 | --- | --- |
-| SG-15 Multiworker ownership | Route to the current worker, reconcile lease loss, prevent duplicate owners, and drain safely during restart |
 | SG-16 Performance and observability | Measure latency/load, exercise outages, and add bounded metrics, logging and alert guidance |
 | SG-17 Staged cutover and rollback | Enable selected local/staging cohorts, prove no dual ownership, and rehearse safe rollback |
 | SG-18 Final acceptance | Verify the complete cross-repository flow, failure matrix, reproducible setup and readiness evidence |
 
-These four tasks have not started. Production rollout remains a separate decision.
+SG-16 is dependency-ready. Production rollout requires a separate decision.
