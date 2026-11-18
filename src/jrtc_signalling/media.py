@@ -121,10 +121,17 @@ class MediaHub:
                 if getattr(reply.data, "exists", False) is True:
                     room.session, room.generation = session, session.generation
                     return room
+            credentials = (
+                self.runtime.elections.room(peer.meeting, peer.generation)
+                if self.runtime.elections is not None
+                else (
+                    secrets.randbelow(2**63 - 1) + 1,
+                    secrets.token_hex(32),
+                    secrets.token_hex(32),
+                )
+            )
             room = Room(
-                secrets.randbelow(2**63 - 1) + 1,
-                secrets.token_hex(32),
-                secrets.token_hex(32),
+                *credentials,
                 session,
                 session.generation,
             )

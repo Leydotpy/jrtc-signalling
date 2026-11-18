@@ -62,6 +62,9 @@ class AuthenticatedEndpoint:
 
             self.moderation = ModerationEnforcer(self)
             media.runtime.moderation = self.moderation
+        self.elections = media.runtime.elections if media is not None else None
+        if self.elections is not None and media is not None:
+            media.runtime.close_connections = self.aclose
         self.handshakes = RateLimit(burst=20, per_second=10)
         self.closing = False
 
@@ -130,10 +133,21 @@ class AuthenticatedEndpoint:
                 self._bind(request, claims, 1)
                 if request["op"] == "session.resume" and "session:resume" not in claims["scopes"]:
                     raise AuthError("FORBIDDEN")
-                session = AuthorizationSession(
-                    self.authority, claims, cache_seconds=self.config.cache_seconds
-                )
-                await session.check(request["op"], consume=True)
+                target = None
+                if self.elections is not None:
+                    from .routing import resolve
+
+                    target = await resolve(self.elections, claims["meeting_id"], websocket)
+                if target is None:
+                    session = AuthorizationSession(
+                        self.authority, claims, cache_seconds=self.config.cache_seconds
+                    )
+                    await session.check(request["op"], consume=True)
+            if target is not None:
+                from .routing import relay
+
+                await relay(websocket, target, request, self.settings, self.config.auth_timeout)
+                return
             self.connections[websocket] = session
             if self.moderation is not None:
                 self.moderation.check(session)
@@ -175,6 +189,8 @@ class AuthenticatedEndpoint:
             pass
 
     async def aclose(self) -> None:
+        if self.closing:
+            return
         self.closing = True
         await asyncio.gather(
             *(self._close(ws, 1012 if self.media else 1001) for ws in list(self.connections))

@@ -27,6 +27,7 @@ from jrtc_video import VideoRoomPlugin, VideoRoomService
 
 from .bus import BusConfig, BusError, _read, parse
 from .commands import CommandRuntime
+from .multiworker import Elections, MeetingManagers, worker_routes
 from .ownership import OPERATION_SECONDS, OwnerLease, OwnershipClient, OwnershipError
 from .runtime import ComponentStatus, DependencyHealth
 
@@ -46,11 +47,13 @@ class JanusConfig:
     api_secret: str = field(repr=False)
     ownership_url: str
     meetings: tuple[str, ...]
+    workers: dict[str, str] | None = None
 
     @classmethod
     def read(cls, path: str) -> "JanusConfig":
         try:
             body = parse(_read(path))
+            workers = worker_routes(body.pop("workers")) if "workers" in body else None
             if set(body) != {"janus_url", "api_secret_file", "ownership_url", "meetings"}:
                 raise ValueError
             for key, schemes in (("janus_url", {"ws", "wss"}), ("ownership_url", {"https"})):
@@ -76,7 +79,7 @@ class JanusConfig:
             secret = _read(body["api_secret_file"], 4096).decode().strip()
             if len(secret) < 32:
                 raise ValueError
-            return cls(body["janus_url"], secret, body["ownership_url"], tuple(meetings))
+            return cls(body["janus_url"], secret, body["ownership_url"], tuple(meetings), workers)
         except (ValueError, TypeError, KeyError, OSError, AttributeError):
             raise BusError("Invalid Janus runtime configuration.") from None
 
@@ -377,9 +380,16 @@ class JanusRuntime:
             queue_capacity=128,
             publish_timeout=0.5,
         )
-        self.manager = JanusSessionManager(
-            pool_size=1, session_factory=self._new_session, event_publisher=self.publisher
-        )
+
+        def manager() -> JanusSessionManager:
+            return JanusSessionManager(
+                pool_size=1, session_factory=self._new_session, event_publisher=self.publisher
+            )
+
+        self.manager = MeetingManagers(config.meetings, manager) if config.workers else manager()
+        self.elections = Elections(self, config.workers) if config.workers else None
+        self.retiring = False
+        self.close_connections: Callable[[], Any] | None = None
         self.registry = HandleRegistry(self)
         self.services: dict[tuple[Any, int], VideoRoomService] = {}
         self.control = CommandRuntime(bus)
@@ -410,16 +420,41 @@ class JanusRuntime:
         if self.loop is not None:
             raise OwnershipError("Runtime cannot be started twice.")
         self.loop = asyncio.get_running_loop()
-        for meeting in self.config.meetings:
-            self.leases[meeting] = await self.authority.request(meeting, "claim")
+        if self.elections is None:
+            for meeting in self.config.meetings:
+                self.leases[meeting] = await self.authority.request(meeting, "claim")
         await self.publisher.start()
         await self.manager.start()
         if self.lifecycle is not None:
             await self.lifecycle.start()
+        if self.elections is not None:
+            await self._campaign()
         self.active = True
         await self.control.start()
         self.task = asyncio.create_task(self._maintain(), name="gateway-janus-ownership")
         self.reconciler = asyncio.create_task(self._reconcile(), name="gateway-janus-cleanup")
+
+    async def _campaign(self) -> None:
+        elections = self.elections
+        if elections is None or self.stopping.is_set() or self.retiring:
+            return
+
+        async def compete(meeting: str) -> None:
+            try:
+                lease = await elections.campaign(meeting)
+            except Exception:
+                # A standby stays available for the next election after an outage.
+                # An ambiguous grant may already be durable. Retire that process.
+                if meeting in self.leases:
+                    raise
+                return
+            if lease is not None:
+                self.leases[meeting] = lease
+
+        async with asyncio.TaskGroup() as group:
+            for meeting in self.config.meetings:
+                if meeting not in self.leases:
+                    group.create_task(compete(meeting))
 
     def require(self, meeting: str, generation: int) -> float:
         now = asyncio.get_running_loop().time()
@@ -430,6 +465,11 @@ class JanusRuntime:
             or asyncio.get_running_loop() is not self.loop
             or lease is None
             or not self.manager.ready
+            or (
+                self.elections is not None
+                and self.manager.get_session(key=meeting)
+                is not self.elections.sessions.get(meeting)
+            )
             or (
                 self.lifecycle is not None
                 and (
@@ -474,7 +514,7 @@ class JanusRuntime:
     async def apply(self, command: dict[str, Any]) -> tuple[str, str]:
         try:
             self.require(command["meeting_id"], command["expected_owner_generation"])
-            if command["target_owner"] != self.owner_id:
+            if self.retiring or command["target_owner"] != self.owner_id:
                 raise OwnershipError("Wrong owner.")
         except OwnershipError:
             return "failed", "owner_lost"
@@ -484,6 +524,7 @@ class JanusRuntime:
 
     async def _maintain(self) -> None:
         renew_at = asyncio.get_running_loop().time() + 5
+        campaign_at = asyncio.get_running_loop().time() + 1
         try:
             while not self.stopping.is_set():
                 if self.loss.is_set():
@@ -504,7 +545,7 @@ class JanusRuntime:
                     }:
                         unsubscribe()
                         self.observers.pop(session, None)
-                if asyncio.get_running_loop().time() >= renew_at:
+                if not self.retiring and asyncio.get_running_loop().time() >= renew_at:
                     for meeting, lease in tuple(self.leases.items()):
                         # Django refuses renewal after meeting end. Retain the
                         # existing finite lease for cleanup/outcome delivery;
@@ -512,13 +553,20 @@ class JanusRuntime:
                         if self.moderation is not None and meeting in self.moderation.terminated:
                             continue
                         try:
-                            self.leases[meeting] = await self.authority.request(
-                                meeting, "renew", lease.generation
-                            )
+                            if self.elections is None:
+                                fresh = await self.authority.request(
+                                    meeting, "renew", lease.generation
+                                )
+                            else:
+                                fresh = await self.elections.renew(meeting, lease)
+                            self.leases[meeting] = fresh
                         except OwnershipError:
                             if self.moderation is None or meeting not in self.moderation.terminated:
                                 raise
                     renew_at = asyncio.get_running_loop().time() + 5
+                if asyncio.get_running_loop().time() >= campaign_at:
+                    await self._campaign()
+                    campaign_at = asyncio.get_running_loop().time() + 1
                 with suppress(TimeoutError):
                     await asyncio.wait_for(self.loss.wait(), 0.5)
         except asyncio.CancelledError:
@@ -545,6 +593,13 @@ class JanusRuntime:
             await self.drain()
             with suppress(Exception):
                 await self.aclose()
+
+    async def begin_rolling_drain(self) -> None:
+        if self.elections is not None:
+            self.retiring = True
+            with suppress(Exception):
+                async with asyncio.timeout(2):
+                    await self.elections.withdraw(self.leases)
 
     async def drain(self) -> None:
         self.active = False
@@ -576,6 +631,10 @@ class JanusRuntime:
             except Exception:
                 clean = False
 
+        if self.elections is not None:
+            if self.close_connections is not None:
+                await attempt(self.close_connections(), 5)
+            await attempt(self.elections.withdraw(self.leases))
         await attempt(self.control.aclose())
         await attempt(self.registry.close())
         await asyncio.gather(
@@ -602,6 +661,8 @@ class JanusRuntime:
             )
         self.leases.clear()
         await attempt(self.authority.close())
+        if self.elections is not None:
+            await attempt(self.elections.redis.aclose())
         if not clean or self.registry.cleanup_failed:
             raise OwnershipError("Janus cleanup requires reconciliation.")
 

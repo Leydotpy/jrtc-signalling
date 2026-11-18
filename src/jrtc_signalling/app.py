@@ -42,6 +42,8 @@ def create_app(
                 from .janus_runtime import JanusConfig, JanusRuntime
 
                 janus_config = JanusConfig.read(selected.runtime_config_file)
+                if janus_config.workers and not selected.media_rehearsal:
+                    raise ValueError("Multiworker ownership requires media rehearsal.")
                 factory = partial(JanusRuntime, bus_config, janus_config)
         except (ValueError, ImportError):
             raise ConfigurationError(
@@ -103,6 +105,10 @@ def create_app(
         lifecycle: Lifecycle | None = request.app.state.lifecycle
         phase = lifecycle.phase if lifecycle else "starting"
         alive = phase in {"running", "draining"}
+        if lifecycle and phase == "running":
+            stop = getattr(lifecycle.runtime, "stopping", None)
+            if stop is not None and stop.is_set():
+                alive = False
         return JSONResponse(
             {"status": "alive" if alive else "not_alive", "phase": phase},
             status_code=200 if alive else 503,
