@@ -378,6 +378,13 @@ class SocketSession:
                     self.authorization.claims, lease.generation, hello["id"]
                 )
             self.endpoint.handoffs.check(self)
+            if self.endpoint.elections is not None:
+                owner = self.endpoint.elections.runtime
+                meeting = self.authorization.claims["meeting_id"]
+                held = owner.leases.get(meeting)
+                if held is None or owner.retiring:
+                    raise OwnershipError("Gateway ownership is draining.")
+                owner.require(meeting, held.generation)
             self._reply(hello, result)
             tasks = [
                 asyncio.create_task(coro)

@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 from jrtc import JanusSessionManager
 from jrtc.core.exceptions import JanusErrorResponse
-from jrtc.models.request import DestroySessionRequest
+from jrtc.models.request import DestroySessionRequest, KeepAliveRequest
 from jrtc.models.response import ErrorResponse, SuccessResponse
 from jrtc.session.websocket import WebsocketSession
 from jrtc_video import VideoRoomDestroyRequest, VideoRoomService
@@ -170,6 +170,16 @@ class Elections:
                 isinstance(reply, ErrorResponse) and reply.error.code == 458
             ):
                 raise OwnershipError("Janus session disposal is unconfirmed.")
+        # Some transports acknowledge destroy before remote disposal finishes.
+        # A former owner's exact session must be unusable before promotion.
+        try:
+            reply = await session.send(KeepAliveRequest(session_id=previous), timeout=2)
+        except JanusErrorResponse as exc:
+            if exc.code != 458:
+                raise OwnershipError("Previous Janus session remains unconfirmed.") from None
+        else:
+            if not isinstance(reply, ErrorResponse) or reply.error.code != 458:
+                raise OwnershipError("Previous Janus session is still reachable.")
         room, _, secret = self.room(meeting, generation)
         service = VideoRoomService(session, close_timeout=2)
         try:

@@ -1,4 +1,4 @@
-# Gateway runtime ownership (SG-07)
+# Gateway runtime ownership
 
 The optional `runtime` extra pins the same reviewed JRTC 3.2.0 and jrtc-video
 3.0.3 commits as Synq. It adds an ASGI-owned, single-session manager and an
@@ -45,7 +45,7 @@ SG-07 accepts at most 16 explicitly configured meetings and 256 local handles.
 Keep initial rehearsals small. Set the gateway shutdown budget to 30 seconds to
 allow bounded handle/service/session cleanup and ownership release; larger
 cohorts may also require a larger startup budget. No routing/load-balancing
-service or production deployment is created here.
+service is required for the single-worker mode.
 
 ## Ownership and recovery
 
@@ -80,9 +80,7 @@ use only their remaining finite lease for cleanup/outcomes; their expected
 renewal refusal cannot stop unrelated meetings.
 Clean shutdown closes handles and services before sessions, then drains the
 generic publisher and releases the exact owner generation. A failed cleanup
-does not publish a successful release. Expired ownership is not proof of remote
-cleanup: SG-07 refuses automatic takeover. Reconciled crash takeover, cross-worker
-routing and rolling drains belong to SG-15. Never clear a route manually merely
+does not publish a successful release. The single-worker protocol requires a confirmed release. The optional SG-15 pool can take over after reconciling the exact former session and room. Never clear a route manually merely
 to bypass a failed cleanup; first reconcile the isolated Janus resources.
 
 The generic event publisher is retained with a bounded in-process diagnostic
@@ -125,3 +123,36 @@ For an extracted Janus installation, put its binary on `PATH`, configure its
 shared-library search path and set `GATEWAY_TEST_JANUS_LIB_DIR` to the extracted
 library directory. The test still starts a real isolated Janus process; no system
 service or production Janus endpoint is used.
+
+
+## SG-15 worker pool
+
+Django's `GATEWAY_MULTIWORKER_ENABLED` defaults to false. Enable it only for the gateway rehearsal with the existing admission, runtime and command settings. Apply Synq migration `0020_gateway_route_recovery` before starting a pool. Give the workers the same meeting list, Redis service, authority, Janus API secret and direct Janus URL. Use a URL dedicated to one Janus instance. The recovery fingerprint binds the URL and secret. A changed fingerprint requires reconciling and draining the original pool first.
+
+Add a `workers` object to each runtime configuration. Each key is a trusted Ed25519 producer ID. Each value is the direct TLS endpoint of that worker. A two-worker pool uses entries like these.
+
+```json
+{
+  "workers": {
+    "gateway-a": "wss://gateway-a.example/ws",
+    "gateway-b": "wss://gateway-b.example/ws"
+  }
+}
+```
+
+Give each simultaneously advertised worker its own producer ID, private key and persistent inbox path. Use one ASGI process per advertised endpoint. Each process opens one isolated Janus SDK session for each configured meeting, including on standby. Size the rehearsal for workers × configured meetings. The single-worker configuration continues to multiplex its meetings over one session.
+
+### Election and recovery
+
+1. Redis grants one short election reservation per meeting. The contender asks Django for the prior generation and exact registered Janus session. Django serializes inspection and election under the meeting lock and refuses a live lease.
+2. The contender disposes of the previous session and checks the previous generation's VideoRoom. It destroys that room using a generation-specific secret and verifies absence. A legacy worker can hand over after a confirmed release. Ambiguous cleanup leaves the meeting unavailable.
+3. The signed election includes the inspected generation and the contender's dedicated session ID. Django compares the generation, rejects retired process incarnations and records the successor before any media can open. Redis publishes the routable owner, incarnation and generation using a conditional update.
+4. Renewal checks both services. The effective local deadline is the earlier conservative deadline. Janus handle and management calls also check the exact registered SDK session. A replacement session needs a new election. An uncertain owner fences new work and closes its sockets and Janus resources. A standby keeps trying through a temporary outage. A process that has lost ownership returns HTTP 503 on its liveness probe and can be restarted with a fresh incarnation.
+
+The Redis route lives for 15 seconds. The database lease lives for 30 seconds. A Redis restart, evicted key or delayed release cannot authorize a second owner. Each physical command stream includes the elected process incarnation. Django checks the immutable target and generation again when accepting outcomes. A delivery with an uncertain prior outcome retains its original identity.
+
+### Browser routing and drain
+
+The browser keeps its configured public WSS URL. Any worker can verify a signed hello or resume, select an allowlisted direct TLS endpoint and relay the WebSocket once. Only the worker whose local generation matches the Redis route consumes the ticket. The relay preserves close codes used by client recovery, bounds frames and queues, and rejects redirects. Only the browser and Janus exchange RTP.
+
+On SIGTERM the gateway withdraws its Redis route before Uvicorn closes the WebSockets. The server keeps its finite ownership window for cleanup. The successor verifies the prior resources before it opens media. To roll back, drain the pool, confirm the old sessions and rooms are gone, disable the pool flag and start a new meeting session under the intended backend. An existing session keeps its original backend assignment.

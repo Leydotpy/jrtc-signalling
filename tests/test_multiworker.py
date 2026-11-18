@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
+from jrtc.models.response import SuccessResponse
 from starlette.datastructures import Headers
 
 from jrtc_signalling.auth import AuthError
@@ -136,3 +137,35 @@ def test_rolling_processes_with_one_signer_have_distinct_command_streams():
     assert command_route("a", old).startswith(command_route("a") + ".")
     with pytest.raises(ValueError):
         command_route("a", "unknown")
+
+
+async def test_destroy_success_without_remote_absence_cannot_promote():
+    session = SimpleNamespace(id=101, send=AsyncMock(return_value=SuccessResponse(janus="success")))
+    with pytest.raises(OwnershipError, match="still reachable"):
+        await Elections._clean_previous(None, session, str(uuid4()), 1, 99)
+    assert session.send.await_count == 2
+
+
+async def test_concurrent_endpoint_shutdown_waits_for_the_same_cleanup(auth_config, authority):
+    from jrtc_signalling.config import Settings
+    from jrtc_signalling.websocket_auth import AuthenticatedEndpoint
+
+    endpoint = AuthenticatedEndpoint(auth_config, Settings(), authority)
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    async def close():
+        started.set()
+        await finish.wait()
+
+    authority.aclose = AsyncMock(side_effect=close)
+    first = asyncio.create_task(endpoint.aclose())
+    await started.wait()
+    second = asyncio.create_task(endpoint.aclose())
+    await asyncio.sleep(0)
+    assert not second.done()
+    first.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await first
+    finish.set()
+    await second
+    authority.aclose.assert_awaited_once()

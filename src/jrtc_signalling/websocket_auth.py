@@ -67,6 +67,7 @@ class AuthenticatedEndpoint:
             media.runtime.close_connections = self.aclose
         self.handshakes = RateLimit(burst=20, per_second=10)
         self.closing = False
+        self.close_task: asyncio.Task[None] | None = None
 
     async def deny(self, websocket: WebSocket, code: str, status: int = 403) -> None:
         if "websocket.http.response" in websocket.scope.get("extensions", {}):
@@ -189,9 +190,12 @@ class AuthenticatedEndpoint:
             pass
 
     async def aclose(self) -> None:
-        if self.closing:
-            return
-        self.closing = True
+        if self.close_task is None:
+            self.closing = True
+            self.close_task = asyncio.create_task(self._close_all(), name="gateway-websocket-close")
+        await asyncio.shield(self.close_task)
+
+    async def _close_all(self) -> None:
         await asyncio.gather(
             *(self._close(ws, 1012 if self.media else 1001) for ws in list(self.connections))
         )
