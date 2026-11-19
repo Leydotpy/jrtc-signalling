@@ -268,7 +268,7 @@
     {
       "id": "SG-17",
       "title": "Feature-flagged local/staged cutover & rollback",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-13",
         "SG-15",
@@ -277,7 +277,7 @@
       "repos": "synq + synq.js + gateway",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-11-19T05:50:45.818404+00:00"
     },
     {
       "id": "SG-18",

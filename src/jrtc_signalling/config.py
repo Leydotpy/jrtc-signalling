@@ -29,6 +29,7 @@ class Settings:
     runtime_config_file: str = ""
     media_rehearsal: bool = False
     lifecycle_events: bool = False
+    staged_routing: bool = False
     metrics_token_file: str = ""
     trace_key_file: str = ""
     tls_cert_file: str = ""
@@ -83,6 +84,12 @@ class Settings:
             raise ConfigurationError("Invalid MEDIA_REHEARSAL.")
         if type(self.lifecycle_events) is not bool:
             raise ConfigurationError("Invalid LIFECYCLE_EVENTS.")
+        if type(self.staged_routing) is not bool or (
+            self.staged_routing and not (self.media_rehearsal and self.lifecycle_events)
+        ):
+            raise ConfigurationError(
+                "STAGED_ROUTING requires MEDIA_REHEARSAL and LIFECYCLE_EVENTS."
+            )
         if any(
             not isinstance(path, str) or len(path) > 4096
             for path in (self.tls_cert_file, self.tls_key_file)
@@ -117,6 +124,7 @@ class Settings:
             "RUNTIME_CONFIG_FILE",
             "MEDIA_REHEARSAL",
             "LIFECYCLE_EVENTS",
+            "STAGED_ROUTING",
             "METRICS_TOKEN_FILE",
             "TRACE_KEY_FILE",
             "TLS_CERT_FILE",
@@ -127,7 +135,8 @@ class Settings:
         try:
             media = env.get(prefix + "MEDIA_REHEARSAL", "false")
             events = env.get(prefix + "LIFECYCLE_EVENTS", "false")
-            if media not in {"true", "false"} or events not in {"true", "false"}:
+            staged = env.get(prefix + "STAGED_ROUTING", "false")
+            if any(value not in {"true", "false"} for value in (media, events, staged)):
                 raise ValueError
             return cls(
                 host=env.get(prefix + "HOST", "127.0.0.1"),
@@ -145,6 +154,7 @@ class Settings:
                 runtime_config_file=env.get(prefix + "RUNTIME_CONFIG_FILE", ""),
                 media_rehearsal=media == "true",
                 lifecycle_events=events == "true",
+                staged_routing=staged == "true",
                 metrics_token_file=env.get(prefix + "METRICS_TOKEN_FILE", ""),
                 trace_key_file=env.get(prefix + "TRACE_KEY_FILE", ""),
                 tls_cert_file=env.get(prefix + "TLS_CERT_FILE", ""),

@@ -104,15 +104,20 @@ def create_app(
                 app.state.auth_endpoint = None
                 await lifecycle.stop()
 
-    def snapshot(request: Request) -> dict[str, Any]:
-        lifecycle: Lifecycle | None = request.app.state.lifecycle
+    def snapshot(app: Starlette) -> dict[str, Any]:
+        lifecycle: Lifecycle | None = app.state.lifecycle
         phase = lifecycle.phase if lifecycle else "starting"
         dependencies = lifecycle.health() if lifecycle else DependencyHealth()
         return {
             "phase": phase,
             "dependencies": dependencies.as_dict(),
             "signalling": "rehearsal" if selected.media_rehearsal else "disabled",
-            "ready": False,
+            "ready": bool(
+                selected.staged_routing
+                and phase == "running"
+                and app.state.auth_endpoint is not None
+                and dependencies.ready
+            ),
         }
 
     async def metrics(request: Request) -> Response:
@@ -149,17 +154,22 @@ def create_app(
         )
 
     async def ready(request: Request) -> JSONResponse:
-        # Rehearsal is not readiness: later revocation/ICE/client gates remain.
+        state = snapshot(request.app)
         return JSONResponse(
-            {"status": "not_ready", **snapshot(request)},
-            status_code=503,
+            {"status": "ready" if state["ready"] else "not_ready", **state},
+            status_code=200 if state["ready"] else 503,
             headers={"Cache-Control": "no-store"},
         )
 
     async def websocket_unavailable(websocket: WebSocket) -> None:
         endpoint: AuthenticatedEndpoint | None = websocket.app.state.auth_endpoint
         lifecycle: Lifecycle | None = websocket.app.state.lifecycle
-        if endpoint is not None and lifecycle is not None and lifecycle.phase == "running":
+        if (
+            endpoint is not None
+            and lifecycle is not None
+            and lifecycle.phase == "running"
+            and (not selected.staged_routing or snapshot(websocket.app)["ready"])
+        ):
             await endpoint(websocket)
             return
         telemetry.handshake(success=False)

@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import closing
+from dataclasses import replace
 
 import pytest
 from starlette.testclient import TestClient, WebSocketDenialResponse
@@ -286,3 +288,44 @@ def test_broken_health_provider_fails_closed():
         assert response.status_code == 503
         assert set(response.json()["dependencies"].values()) == {"unavailable"}
         assert "private-broker-url" not in response.text
+
+
+def test_staged_ingress_requires_all_dependencies_and_a_running_endpoint(auth_config):
+    settings = Settings(staged_routing=True, media_rehearsal=True, lifecycle_events=True)
+    app = create_app(settings, auth_config=auth_config)
+    runtime = ControlledRuntime()
+    lifecycle = Lifecycle(runtime, settings)
+    app.state.lifecycle = lifecycle
+    with closing(TestClient(app)) as client:
+        assert client.get("/health/ready").status_code == 503
+        lifecycle.phase = "running"
+        assert client.get("/health/ready").status_code == 503
+        app.state.auth_endpoint = object()
+        assert client.get("/health/ready").status_code == 200
+        for field in ("janus", "broka", "authority", "ownership"):
+            runtime.status = replace(
+                DependencyHealth(*(ComponentStatus.READY for _ in range(4))),
+                **{field: ComponentStatus.DEGRADED},
+            )
+            assert client.get("/health/ready").status_code == 503
+            with pytest.raises(WebSocketDenialResponse) as error, client.websocket_connect("/ws"):
+                pytest.fail("A degraded staged worker accepted a new socket")
+            assert error.value.status_code == 503
+        runtime.status = DependencyHealth(*(ComponentStatus.READY for _ in range(4)))
+        lifecycle.phase = "draining"
+        assert client.get("/health/ready").status_code == 503
+
+
+def test_staged_mode_requires_media_lifecycle_and_explicit_boolean():
+    from jrtc_signalling.config import ConfigurationError
+
+    for value in ("true", "enabled"):
+        with pytest.raises(ConfigurationError):
+            Settings.from_env({"JRTC_SIGNALLING_STAGED_ROUTING": value})
+    assert Settings.from_env(
+        {
+            "JRTC_SIGNALLING_STAGED_ROUTING": "true",
+            "JRTC_SIGNALLING_MEDIA_REHEARSAL": "true",
+            "JRTC_SIGNALLING_LIFECYCLE_EVENTS": "true",
+        }
+    ).staged_routing

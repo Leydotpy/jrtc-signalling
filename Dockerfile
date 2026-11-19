@@ -9,7 +9,8 @@ COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable --extra runtime
 
 FROM python:3.12-slim
-RUN groupadd --system gateway && useradd --system --gid gateway --no-create-home gateway
+RUN groupadd --system gateway && useradd --system --gid gateway --no-create-home gateway \
+    && install -d -o gateway -g gateway /var/lib/gateway
 WORKDIR /app
 COPY --from=builder --chown=gateway:gateway /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 JRTC_SIGNALLING_HOST=0.0.0.0

@@ -669,7 +669,12 @@ class JanusRuntime:
     def health(self) -> DependencyHealth:
         current = (
             self.active
-            and bool(self.leases)
+            and not self.retiring
+            and not self.stopping.is_set()
+            and any(
+                self.moderation is None or meeting not in self.moderation.terminated
+                for meeting in self.leases
+            )
             and all(
                 lease.deadline > asyncio.get_running_loop().time() for lease in self.leases.values()
             )
