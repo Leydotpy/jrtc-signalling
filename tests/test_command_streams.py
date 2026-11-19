@@ -140,3 +140,35 @@ async def test_pending_message_is_reclaimed_and_slow_consumer_is_serial(bus_case
         await pub.close()
         async with Redis.from_url(url) as client:
             await client.delete(route)
+
+
+async def test_stream_cap_preserves_unread_and_pending_during_concurrent_publication():
+    from jrtc_signalling.bus import BusError
+
+    url = os.environ["GATEWAY_TEST_REDIS_URL"]
+    stream = command_route("capacity-" + uuid4().hex)
+    pub = Streams(url, "publisher")
+    pub.engine.capacity = 4
+    async with Redis.from_url(url) as client:
+        await pub.start()
+        try:
+
+            async def publish(i):
+                await pub.publish(stream, str(i).encode(), str(i))
+
+            results = await asyncio.gather(*(publish(i) for i in range(12)), return_exceptions=True)
+            assert sum(value is None for value in results) == 4
+            assert sum(isinstance(value, BusError) for value in results) == 8
+            await client.xgroup_create(stream, "reader", "0")
+            [(_, entries)] = await client.xreadgroup("reader", "worker", {stream: ">"}, count=2)
+            with pytest.raises(BusError):
+                await publish(20)
+            assert await client.xlen(stream) == 4
+            await client.xack(stream, "reader", entries[0][0])
+            await publish(21)
+            assert await client.xlen(stream) == 4
+            assert (await client.xpending(stream, "reader"))["pending"] == 1
+            assert (await client.xrange(stream, count=1))[0][0] == entries[1][0]
+        finally:
+            await pub.close()
+            await client.delete(stream)

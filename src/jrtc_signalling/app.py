@@ -1,5 +1,6 @@
 """Standalone ASGI factory with an explicit, non-production media rehearsal."""
 
+import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from functools import partial
@@ -7,13 +8,14 @@ from typing import Any
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 
 from .auth import AuthConfig, Authority, HTTPAuthority
 from .config import ConfigurationError, Settings
 from .runtime import DependencyHealth, Lifecycle, Runtime, ScaffoldRuntime
+from .telemetry import CONTENT_TYPE, GatewayTelemetry, authorized, read_key
 from .websocket_auth import AuthenticatedEndpoint
 
 
@@ -25,6 +27,8 @@ def create_app(
     authority_factory: Callable[[AuthConfig], Authority] = HTTPAuthority,
 ) -> Starlette:
     selected = settings if settings is not None else Settings.from_env()
+    token = read_key(selected.metrics_token_file)
+    telemetry = GatewayTelemetry(read_key(selected.trace_key_file))
     authentication = auth_config
     if authentication is None and selected.auth_config_file:
         authentication = AuthConfig.read(selected.auth_config_file)
@@ -64,6 +68,7 @@ def create_app(
             event_runtime.lifecycle = LifecyclePublisher(event_runtime.bus)
         app.state.lifecycle = lifecycle
         await lifecycle.start()
+        observers: list[asyncio.Task[None]] = []
         try:
             if authentication is not None:
                 media = None
@@ -80,9 +85,18 @@ def create_app(
                     authority_factory(authentication),
                     media,
                     event_runtime=event_runtime,
+                    telemetry=telemetry,
                 )
+            if token:
+                observers.append(asyncio.create_task(telemetry.sample_loop()))
+                control = getattr(lifecycle.runtime, "control", lifecycle.runtime)
+                if hasattr(control, "sample_depth"):
+                    observers.append(asyncio.create_task(control.sample_depth()))
             yield
         finally:
+            for task in observers:
+                task.cancel()
+            await asyncio.gather(*observers, return_exceptions=True)
             try:
                 if app.state.auth_endpoint is not None:
                     await app.state.auth_endpoint.aclose()
@@ -100,6 +114,25 @@ def create_app(
             "signalling": "rehearsal" if selected.media_rehearsal else "disabled",
             "ready": False,
         }
+
+    async def metrics(request: Request) -> Response:
+        headers = {"Cache-Control": "no-store"}
+        if not token:
+            return Response(status_code=404, headers=headers)
+        auth = request.headers.getlist("authorization")
+        if (
+            len(auth) != 1
+            or request.scope.get("query_string")
+            or not authorized(token, request.url.scheme == "https", auth[0])
+        ):
+            return Response(status_code=403, headers=headers)
+        lifecycle = request.app.state.lifecycle
+        return Response(
+            telemetry.render(
+                request.app.state.auth_endpoint, lifecycle.runtime if lifecycle else None
+            ),
+            headers={**headers, "Content-Type": CONTENT_TYPE},
+        )
 
     async def live(request: Request) -> JSONResponse:
         lifecycle: Lifecycle | None = request.app.state.lifecycle
@@ -129,6 +162,7 @@ def create_app(
         if endpoint is not None and lifecycle is not None and lifecycle.phase == "running":
             await endpoint(websocket)
             return
+        telemetry.handshake(success=False)
         if "websocket.http.response" in websocket.scope.get("extensions", {}):
             await websocket.send_denial_response(
                 JSONResponse(
@@ -144,6 +178,7 @@ def create_app(
     app = Starlette(
         debug=False,
         routes=[
+            Route("/metrics", metrics),
             Route("/health/live", live),
             Route("/health/ready", ready),
             Route("/health", ready),

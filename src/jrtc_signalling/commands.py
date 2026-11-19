@@ -16,6 +16,7 @@ from .bus import EVENTS, BusConfig, BusError, canonical, command_route, digest, 
 from .bus_transport import Streams
 from .command_store import CommandStore
 from .runtime import ComponentStatus, DependencyHealth
+from .telemetry import Histogram
 
 
 class CommandAuthority(Protocol):
@@ -87,6 +88,7 @@ class CommandConsumer:
         self.enforcer = enforcer or NoOwnerEnforcer()
         self.clock = clock
         self.counters: Counter[str] = Counter()
+        self.delivery_age = Histogram()
 
     async def handle(self, delivery: EngineIncomingMessage) -> None:
         try:
@@ -119,6 +121,7 @@ class CommandConsumer:
                         issued = datetime.fromisoformat(
                             command["issued_at"].replace("Z", "+00:00")
                         ).timestamp()
+                        self.delivery_age.observe(max(0, now - issued))
                         expiry = datetime.fromisoformat(
                             command["expires_at"].replace("Z", "+00:00")
                         ).timestamp()
@@ -155,6 +158,7 @@ class CommandRuntime:
         self.consumer = CommandConsumer(config, self.store, self.authority)
         self.route = command_route(config.signer.producer, incarnation)
         self.transport = Streams(config.redis_url, "gateway-control-v1")
+        self.group_depth: tuple[int | None, int | None] = (None, None)
         self.status = ComponentStatus.UNAVAILABLE
         self.stop = asyncio.Event()
         self.task: asyncio.Task[None] | None = None
@@ -162,6 +166,15 @@ class CommandRuntime:
     async def start(self) -> None:
         await asyncio.to_thread(self.store.initialize)
         self.task = asyncio.create_task(self.run(), name="gateway-control-plane")
+
+    async def sample_depth(self) -> None:
+        while True:
+            try:
+                async with asyncio.timeout(1):
+                    self.group_depth = await self.transport.engine.group_depth(self.route)
+            except Exception:
+                self.group_depth = (None, None)
+            await asyncio.sleep(5)
 
     async def relay(self) -> None:
         for row in await asyncio.to_thread(self.store.pending, time.time()):

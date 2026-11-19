@@ -16,6 +16,7 @@ from starlette.websockets import WebSocket
 
 from .auth import AuthError, AuthorizationSession
 from .contracts import OperationError, validate_message
+from .logging import trace_session
 from .ownership import OwnershipError
 from .schema_definitions import REQUEST_PAYLOADS
 
@@ -94,6 +95,7 @@ class SocketSession:
         self.transport_lost = False
         self.failure = asyncio.Event()
         self.revocation = asyncio.Event()
+        self.admitted = False
         self.superseded = False
         self.finished = asyncio.Event()
         self.metrics = endpoint.metrics
@@ -287,7 +289,10 @@ class SocketSession:
                 except TimeoutError:
                     raise OperationError("TIMEOUT") from None
                 try:
-                    metric.queue_seconds += time.monotonic() - arrived
+                    queued = time.monotonic() - arrived
+                    metric.queue_seconds += queued
+                    if op == "media.trickle":
+                        self.endpoint.telemetry.queue.observe(queued)
                     self.metrics.active += 1
                     self.metrics.peak_active = max(self.metrics.peak_active, self.metrics.active)
                     if op == "session.refresh":
@@ -315,6 +320,8 @@ class SocketSession:
                     else:
                         raise AuthError("FORBIDDEN")
                     self._reply(request, result)
+                    if op == "media.trickle":
+                        self.endpoint.telemetry.ice.observe(time.monotonic() - arrived)
                 finally:
                     self.metrics.active -= 1
                     self.endpoint.operations.release()
@@ -386,6 +393,12 @@ class SocketSession:
                     raise OwnershipError("Gateway ownership is draining.")
                 owner.require(meeting, held.generation)
             self._reply(hello, result)
+            self.admitted = True
+            resume = hello["op"] == "session.resume"
+            self.endpoint.telemetry.handshake(success=True, resume=resume)
+            trace_session(
+                self.endpoint.telemetry.trace_key, self.authorization.claims, resume=resume
+            )
             tasks = [
                 asyncio.create_task(coro)
                 for coro in (

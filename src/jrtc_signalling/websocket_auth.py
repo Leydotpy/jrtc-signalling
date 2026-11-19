@@ -12,6 +12,7 @@ from .config import Settings
 from .contracts import ContractError, decode_message
 from .reconnect import ConnectionHandoffs
 from .signalling import CloseSession, DispatchMetrics, SocketSession
+from .telemetry import GatewayTelemetry
 
 if TYPE_CHECKING:
     from .media import MediaHub
@@ -45,12 +46,14 @@ class AuthenticatedEndpoint:
         media: "MediaHub | None" = None,
         *,
         event_runtime: Any = None,
+        telemetry: GatewayTelemetry | None = None,
     ) -> None:
         self.config, self.settings, self.authority = config, settings, authority
         self.verifier = TicketVerifier(config)
         self.media = media
         self.event_runtime = event_runtime
         self.metrics = DispatchMetrics()
+        self.telemetry = telemetry or GatewayTelemetry()
         self.operations = asyncio.Semaphore(16)
         self.handlers: set[asyncio.Task[Any]] = set()
         self.connections: dict[WebSocket, AuthorizationSession | None] = {}
@@ -109,6 +112,8 @@ class AuthenticatedEndpoint:
             or websocket.scope.get("query_string")
             or websocket.scope.get("subprotocols") != [PROTOCOL]
         ):
+            self.telemetry.handshake(success=False)
+            self.telemetry.auth_error("FORBIDDEN")
             await self.deny(websocket, "FORBIDDEN")
             return
         if (
@@ -116,6 +121,7 @@ class AuthenticatedEndpoint:
             or len(self.connections) >= self.config.max_connections
             or not self.handshakes.take()
         ):
+            self.telemetry.handshake(success=False)
             await self.deny(websocket, "OVERLOADED", 503)
             return
         # No await between admission and insertion: bounded per event-loop worker.
@@ -124,12 +130,14 @@ class AuthenticatedEndpoint:
         assert handler is not None
         self.handlers.add(handler)
         socket_session = None
+        resume = relayed = False
         try:
             async with asyncio.timeout(self.config.auth_timeout):
                 await websocket.accept(subprotocol=PROTOCOL)
                 request = await self._receive(websocket, self.config.auth_timeout)
                 if request["op"] not in {"session.hello", "session.resume"}:
                     raise AuthError()
+                resume = request["op"] == "session.resume"
                 claims = self.verifier.verify(request["payload"]["ticket"])
                 self._bind(request, claims, 1)
                 if request["op"] == "session.resume" and "session:resume" not in claims["scopes"]:
@@ -147,6 +155,8 @@ class AuthenticatedEndpoint:
             if target is not None:
                 from .routing import relay
 
+                relayed = True
+                self.telemetry.relayed += 1
                 await relay(websocket, target, request, self.settings, self.config.auth_timeout)
                 return
             self.connections[websocket] = session
@@ -161,6 +171,7 @@ class AuthenticatedEndpoint:
         except CloseSession as exc:
             await self._close(websocket, exc.code)
         except AuthError as exc:
+            self.telemetry.auth_error(exc.code)
             code = 1013 if exc.code in {"UNAVAILABLE", "OVERLOADED", "RATE_LIMITED"} else 1008
             if socket_session is not None and socket_session.superseded:
                 code = 4009
@@ -175,6 +186,8 @@ class AuthenticatedEndpoint:
             # Do not serialize or log exception text containing tokens/HTTP bodies.
             await self._close(websocket, 1011)
         finally:
+            if not relayed and (socket_session is None or not socket_session.admitted):
+                self.telemetry.handshake(success=False, resume=resume)
             self.connections.pop(websocket, None)
             self.handlers.discard(handler)
             if socket_session is not None:

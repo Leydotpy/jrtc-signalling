@@ -252,7 +252,7 @@
     {
       "id": "SG-16",
       "title": "Performance, resilience and instrumentation",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "dependencies": [
         "SG-12",
         "SG-15"
@@ -260,7 +260,7 @@
       "repos": "all applicable",
       "report": null,
       "commits": {},
-      "last_updated": null
+      "last_updated": "2026-11-19T00:11:38.052051+00:00"
     },
     {
       "id": "SG-17",

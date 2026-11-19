@@ -5,6 +5,7 @@ consumer. Each owner has a stream; only one Django outcome consumer group exists
 """
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
@@ -12,17 +13,65 @@ from broka.engines.base import (
     EngineConsumer,
     EngineIncomingMessage,
     EnginePublishContext,
+    EnginePublishResult,
     EngineSubscription,
 )
 from broka.engines.redis import RedisEngine
 
 from .bus import MAX_PACKET, BusError
 
+# Redis 7 MAXLEN can evict an unread or pending control decision. At capacity,
+# reclaim only the delivered prefix before the oldest pending entry. Refuse
+# writes when the sole expected group has no reclaimable space. Existing
+# durable outboxes retry after backpressure. The check and append are atomic.
+CAPPED_APPEND = """
+local stream = KEYS[1]
+local cap = tonumber(ARGV[1])
+if redis.call('XLEN', stream) >= cap then
+    local groups = redis.call('XINFO', 'GROUPS', stream)
+    if #groups ~= 1 then return false end
+    local group = {}
+    for i = 1, #groups[1], 2 do group[groups[1][i]] = groups[1][i+1] end
+    local pending = redis.call('XPENDING', stream, group.name)
+    local floor = pending[2] or group['last-delivered-id']
+    redis.call('XTRIM', stream, 'MINID', floor)
+    if redis.call('XLEN', stream) >= cap then return false end
+end
+return redis.call('XADD', stream, '*', 'payload', ARGV[2], 'headers', ARGV[3], 'message_id', ARGV[4])
+"""
+
+
+class ControlEngine(RedisEngine):
+    """Broka 0.0.2's Redis Streams envelope with lossless admission at the cap."""
+
+    capacity = 4096
+
+    async def publish(
+        self, destination: str, payload: bytes, context: EnginePublishContext
+    ) -> EnginePublishResult:
+        raw = await self._client.eval(
+            CAPPED_APPEND,
+            1,
+            destination,
+            self.capacity,
+            payload,
+            json.dumps(dict(context.headers), separators=(",", ":")),
+            context.message_id,
+        )
+        return EnginePublishResult(accepted=bool(raw), transport_id=raw.decode() if raw else None)
+
+    async def group_depth(self, route: str) -> tuple[int | None, int | None]:
+        if self._client is not None:
+            for row in await self._client.xinfo_groups(route):
+                if row["name"].decode() == self.config["group"]:
+                    return row.get("lag"), row["pending"]
+        return None, None
+
 
 class Streams:
     def __init__(self, url: str, group: str, *, claim_idle_ms: int = 10000) -> None:
         self.consumers: list[EngineConsumer] = []
-        self.engine = RedisEngine(
+        self.engine = ControlEngine(
             {
                 "url": url,
                 "mode": "streams",

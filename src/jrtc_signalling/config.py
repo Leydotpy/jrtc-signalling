@@ -29,6 +29,8 @@ class Settings:
     runtime_config_file: str = ""
     media_rehearsal: bool = False
     lifecycle_events: bool = False
+    metrics_token_file: str = ""
+    trace_key_file: str = ""
     tls_cert_file: str = ""
     tls_key_file: str = ""
 
@@ -45,7 +47,7 @@ class Settings:
         if (
             not isinstance(self.websocket_path, str)
             or not re.fullmatch(r"/[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", self.websocket_path)
-            or self.websocket_path in {"/health", "/health/live", "/health/ready"}
+            or self.websocket_path in {"/health", "/health/live", "/health/ready", "/metrics"}
         ):
             raise ConfigurationError("Invalid WS_PATH.")
         for timeout_field, timeout_value in [
@@ -70,6 +72,11 @@ class Settings:
             raise ConfigurationError("Invalid BUS_CONFIG_FILE.")
         if not isinstance(self.runtime_config_file, str) or len(self.runtime_config_file) > 4096:
             raise ConfigurationError("Invalid RUNTIME_CONFIG_FILE.")
+        if any(
+            not isinstance(path, str) or len(path) > 4096
+            for path in (self.metrics_token_file, self.trace_key_file)
+        ):
+            raise ConfigurationError("Invalid observability key path.")
         if self.runtime_config_file and not self.bus_config_file:
             raise ConfigurationError("Runtime ownership requires BUS_CONFIG_FILE.")
         if type(self.media_rehearsal) is not bool:
@@ -110,6 +117,8 @@ class Settings:
             "RUNTIME_CONFIG_FILE",
             "MEDIA_REHEARSAL",
             "LIFECYCLE_EVENTS",
+            "METRICS_TOKEN_FILE",
+            "TRACE_KEY_FILE",
             "TLS_CERT_FILE",
             "TLS_KEY_FILE",
         }
@@ -136,6 +145,8 @@ class Settings:
                 runtime_config_file=env.get(prefix + "RUNTIME_CONFIG_FILE", ""),
                 media_rehearsal=media == "true",
                 lifecycle_events=events == "true",
+                metrics_token_file=env.get(prefix + "METRICS_TOKEN_FILE", ""),
+                trace_key_file=env.get(prefix + "TRACE_KEY_FILE", ""),
                 tls_cert_file=env.get(prefix + "TLS_CERT_FILE", ""),
                 tls_key_file=env.get(prefix + "TLS_KEY_FILE", ""),
             )

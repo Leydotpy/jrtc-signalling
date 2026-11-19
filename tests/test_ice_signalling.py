@@ -338,3 +338,19 @@ async def test_unsolicited_restart_offer_is_processed_once_and_retired_offer_rej
     with pytest.raises(WebSocketDisconnect):
         while True:
             assert (await browser.receive())["op"] != "media.jsep"
+
+
+async def test_telemetry_observes_successful_dispatch_without_recounting_replay(rehearsal):
+    browser, result = await ready(rehearsal, "publisher")
+    frame = browser.message("media.trickle", payload("publisher", result))
+    for _ in range(2):
+        await browser.send(frame)
+        assert (await browser.reply(frame["id"]))["ok"]
+    rejected = await browser.request("media.trickle", payload("publisher", result, ice="stale"))
+    assert not rejected["ok"]
+    endpoint = rehearsal.app.state.auth_endpoint
+    values = endpoint.telemetry.render(endpoint, rehearsal.runtime)
+    assert "jrtc_ice_ack_seconds_count 1\n" in values
+    assert "jrtc_ice_queue_seconds_count 2\n" in values
+    assert "jrtc_ice_dispatch_errors_total 1\n" in values
+    assert "jrtc_janus_sessions 1\n" in values
