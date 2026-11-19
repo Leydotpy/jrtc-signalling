@@ -106,4 +106,4 @@ deployment has been created.
 
 SG-15 verified multiworker ownership, routing and graceful drain. SG-16 adds
 bounded instrumentation and a paired ICE benchmark with real Janus audio.
-SG-17 covers staged cohort cutover and rollback. [Current task tracker](docs/implementation/PROGRESS.md)
+SG-17 adds operator-selected room cohorts and verified failback. [Staged cutover runbook](docs/STAGED_CUTOVER.md) · [Current task tracker](docs/implementation/PROGRESS.md)

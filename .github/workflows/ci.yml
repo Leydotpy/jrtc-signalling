@@ -134,6 +134,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: docker compose config --quiet
       - run: docker compose -f compose.yaml -f compose.dev.yaml config --quiet
+      - name: Validate staged health-check overlay
+        run: GATEWAY_STAGE_CONFIG_DIR="$GITHUB_WORKSPACE" docker compose -f compose.yaml -f compose.staged.yaml config --quiet
       - run: docker build -t jrtc-signalling:ci .
       - run: docker run --rm jrtc-signalling:ci jrtc-signalling --check-config
       - name: Container startup and shutdown smoke

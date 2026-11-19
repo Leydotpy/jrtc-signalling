@@ -33,7 +33,7 @@ def main() -> None:
         print(str(exc), file=sys.stderr)
         raise SystemExit(2) from None
     if args.check_config:
-        print("Configuration valid. Signalling remains disabled until integration is complete.")
+        print("Configuration valid.")
         return
     config = uvicorn.Config(
         app,
