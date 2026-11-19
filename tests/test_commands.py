@@ -301,3 +301,29 @@ async def test_consumer_task_startup_failure_is_not_healthy():
     await asyncio.gather(task, return_exceptions=True)
     transport.consumers.append(SimpleNamespace(_task=task))
     assert not await transport.healthy()
+
+
+async def test_dead_outcomes_are_observable_during_broker_failure(bus_case):
+    from jrtc_signalling.telemetry import GatewayTelemetry
+
+    runtime = CommandRuntime(bus_case.config)
+    runtime.store.initialize()
+    now = bus_case.now
+    runtime.store.begin(bus_case.command, now)
+    [outcome] = runtime.store.pending(now + 1)
+    for _ in range(10):
+        runtime.store.failed_publish(outcome["id"], now)
+    runtime.transport.engine.group_depth = AsyncMock(side_effect=OSError)
+    observer = asyncio.create_task(runtime.sample_depth())
+    try:
+        async with asyncio.timeout(2):
+            while not runtime.store_depth:  # noqa: ASYNC110 - wait for an off-loop SQLite sample
+                await asyncio.sleep(0.01)
+        metrics = GatewayTelemetry().render(None, runtime)
+        assert "jrtc_command_group_lag NaN\n" in metrics
+        assert "jrtc_command_outcomes_dead 1\n" in metrics
+        assert "jrtc_command_outcomes_pending 0\n" in metrics
+    finally:
+        observer.cancel()
+        await asyncio.gather(observer, return_exceptions=True)
+        await runtime.authority.close()

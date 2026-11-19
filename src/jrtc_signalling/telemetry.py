@@ -171,6 +171,12 @@ class GatewayTelemetry:
                     f"jrtc_command_reader_up {int(control.status.value == 'ready')}",
                 )
             )
+            for name, field in (
+                ("jrtc_command_outcomes_pending", "pending_outcomes"),
+                ("jrtc_command_outcomes_dead", "dead_outcomes"),
+                ("jrtc_command_quarantine_entries", "quarantined"),
+            ):
+                lines.append(f"{name} {control.store_depth.get(field, 'NaN')}")
             for name, value in zip(("lag", "pending"), control.group_depth, strict=True):
                 lines.append(f"jrtc_command_group_{name} {value if value is not None else 'NaN'}")
         return "\n".join(lines) + "\n"

@@ -158,6 +158,7 @@ class CommandRuntime:
         self.consumer = CommandConsumer(config, self.store, self.authority)
         self.route = command_route(config.signer.producer, incarnation)
         self.transport = Streams(config.redis_url, "gateway-control-v1")
+        self.store_depth: dict[str, int] = {}
         self.group_depth: tuple[int | None, int | None] = (None, None)
         self.status = ComponentStatus.UNAVAILABLE
         self.stop = asyncio.Event()
@@ -174,6 +175,10 @@ class CommandRuntime:
                     self.group_depth = await self.transport.engine.group_depth(self.route)
             except Exception:
                 self.group_depth = (None, None)
+            try:
+                self.store_depth = await asyncio.to_thread(self.store.inspect)
+            except Exception:
+                self.store_depth = {}
             await asyncio.sleep(5)
 
     async def relay(self) -> None:
