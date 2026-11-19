@@ -23,9 +23,12 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-13 Moderation | DONE | [Report](tracking/reports/SG-13.md); implementation `e05d0bd`, acceptance runner `82f34a0`; all seven jobs passed in [CI 43715489748](https://github.com/Leydotpy/jrtc-signalling/actions/runs/43715489748) |
 | SG-14 Reconnect/resume | DONE | [Report](tracking/reports/SG-14.md); gateway `4676d03`, Synq `68b0db2`, client `f43abaf`; [browser CI 44133663381](https://github.com/Leydotpy/synq.js/actions/runs/44133663381) |
 | SG-15 Multiworker ownership and drain | DONE | [Report](tracking/reports/SG-15.md), gateway `1b4ecd1`, Synq `e0b0481` |
-| SG-16–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-16 Performance, resilience and observability | DONE | [Report](tracking/reports/SG-16.md), gateway `2797d26`, Synq `90af54c` |
+| SG-17–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
 
 ## Verification
+
+SG-16 verified 512 ICE acknowledgements across two run orders with four live audio publishers, a Redis pause and a Janus restart. The report includes tail latency from multiple runners and the measured cost of keeping a standby. [SG-16 report](tracking/reports/SG-16.md)
 
 SG-15 exercised two gateway processes, four ownership generations, TLS routing, live WebRTC audio, PostgreSQL fencing and Redis outage recovery. The task report records the commands, results and rollback check. [SG-15 report](tracking/reports/SG-15.md)
 
@@ -114,12 +117,11 @@ and confirmed handle/room cleanup. Uncertain media cleanup retains its conservat
 lease fence. SG-14 adds bounded automatic resumption, fresh authority, quiet state
 repair and rebuilt media. SG-15 routes sockets and commands to the elected worker and reconciles prior Janus resources before takeover.
 
-Three tasks remain after SG-15.
+Two tasks remain after SG-16.
 
 | Task | Remaining work |
 | --- | --- |
-| SG-16 Performance and observability | Measure latency/load, exercise outages, and add bounded metrics, logging and alert guidance |
 | SG-17 Staged cutover and rollback | Enable selected local/staging cohorts, prove no dual ownership, and rehearse safe rollback |
 | SG-18 Final acceptance | Verify the complete cross-repository flow, failure matrix, reproducible setup and readiness evidence |
 
-SG-16 is dependency-ready. Production rollout requires a separate decision.
+SG-17 is dependency-ready. Production rollout requires a separate decision.

@@ -252,15 +252,18 @@
     {
       "id": "SG-16",
       "title": "Performance, resilience and instrumentation",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-12",
         "SG-15"
       ],
       "repos": "all applicable",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-11-19T00:11:38.052051+00:00"
+      "report": "tracking/reports/SG-16.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "2797d26abe6e995e6ad702b0ccb63652bf46f71e",
+        "Leydotpy/synq": "90af54cb573826fe46ff508696e0e34fde5b778d"
+      },
+      "last_updated": "2026-11-19T05:13:19.302126+00:00"
     },
     {
       "id": "SG-17",

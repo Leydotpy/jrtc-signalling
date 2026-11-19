@@ -45,6 +45,7 @@ production readiness remains closed.
 
 | Endpoint | Scaffold response | Purpose |
 | --- | --- | --- |
+| GET /metrics | HTTPS bearer when configured | [Gateway and Django observability](docs/OBSERVABILITY.md) |
 | GET /health/live | 200 while running/draining | process liveness |
 | GET /health/ready | 503, dependencies and signalling=disabled | traffic readiness |
 | GET /health | same as readiness | aggregate status |
@@ -101,12 +102,8 @@ The image runs as a non-root user. Its healthcheck probes liveness; an image bei
 healthy does **not** mean it can serve media. No production service, secrets or
 deployment has been created.
 
-## Next dependency
+## Implementation status
 
-SG-13 now enforces moderation with the optional runtime and media rehearsal enabled.
-[SG-14](docs/RECONNECT.md) now implements and verifies automatic reconnect/resume
-and stale-generation recovery across the gateway, Django and browser client.
-SG-15 is next: multiworker ownership routing, lease-loss reconciliation and
-graceful drain. The default enforcer without a runtime still reports
-failed/owner_lost. Follow the
-[task order](docs/implementation/EXECUTION_ORDER.md).
+SG-15 verified multiworker ownership, routing and graceful drain. SG-16 adds
+bounded instrumentation and a paired ICE benchmark with real Janus audio.
+SG-17 covers staged cohort cutover and rollback. [Current task tracker](docs/implementation/PROGRESS.md)
