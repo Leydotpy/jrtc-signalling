@@ -51,7 +51,7 @@ class SafeJSONFormatter(logging.Formatter):
             "level": record.levelname,
             "event": event,
         }
-        if event in SESSION_EVENTS:
+        if event in SESSION_EVENTS and record.name == "jrtc_signalling.session":
             for field in ("meeting_ref", "session_ref"):
                 value = getattr(record, field, None)
                 if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{32}", value):

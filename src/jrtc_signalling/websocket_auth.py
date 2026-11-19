@@ -172,6 +172,10 @@ class AuthenticatedEndpoint:
             await self._close(websocket, exc.code)
         except AuthError as exc:
             self.telemetry.auth_error(exc.code)
+            if exc.code == "OVERLOADED" and socket_session is not None:
+                self.metrics.overloads += 1
+            if relayed:
+                self.telemetry.relay_errors += 1
             code = 1013 if exc.code in {"UNAVAILABLE", "OVERLOADED", "RATE_LIMITED"} else 1008
             if socket_session is not None and socket_session.superseded:
                 code = 4009

@@ -159,15 +159,29 @@ async def test_stream_cap_preserves_unread_and_pending_during_concurrent_publica
             results = await asyncio.gather(*(publish(i) for i in range(12)), return_exceptions=True)
             assert sum(value is None for value in results) == 4
             assert sum(isinstance(value, BusError) for value in results) == 8
-            await client.xgroup_create(stream, "reader", "0")
-            [(_, entries)] = await client.xreadgroup("reader", "worker", {stream: ">"}, count=2)
+            # An extra observer cannot authorize deletion of another group's backlog.
+            await client.xgroup_create(stream, "observer", "$")
+            with pytest.raises(BusError):
+                await publish(19)
+            assert await client.xlen(stream) == 4
+            await client.xgroup_destroy(stream, "observer")
+            group = "gateway-control-v1"
+            reader = Streams(url, group)
+            await reader.start()
+            try:
+                assert await reader.engine.group_depth(stream) == (None, None)
+                await client.xgroup_create(stream, group, "0")
+                assert await reader.engine.group_depth(stream) == (4, 0)
+            finally:
+                await reader.close()
+            [(_, entries)] = await client.xreadgroup(group, "worker", {stream: ">"}, count=2)
             with pytest.raises(BusError):
                 await publish(20)
             assert await client.xlen(stream) == 4
-            await client.xack(stream, "reader", entries[0][0])
+            await client.xack(stream, group, entries[0][0])
             await publish(21)
             assert await client.xlen(stream) == 4
-            assert (await client.xpending(stream, "reader"))["pending"] == 1
+            assert (await client.xpending(stream, group))["pending"] == 1
             assert (await client.xrange(stream, count=1))[0][0] == entries[1][0]
         finally:
             await pub.close()

@@ -18,7 +18,7 @@ from broka.engines.base import (
 )
 from broka.engines.redis import RedisEngine
 
-from .bus import MAX_PACKET, BusError
+from .bus import COMMANDS, EVENTS, LIFECYCLE, MAX_PACKET, BusError
 
 # Redis 7 MAXLEN can evict an unread or pending control decision. At capacity,
 # reclaim only the delivered prefix before the oldest pending entry. Refuse
@@ -32,6 +32,7 @@ if redis.call('XLEN', stream) >= cap then
     if #groups ~= 1 then return false end
     local group = {}
     for i = 1, #groups[1], 2 do group[groups[1][i]] = groups[1][i+1] end
+    if group.name ~= ARGV[5] then return false end
     local pending = redis.call('XPENDING', stream, group.name)
     local floor = pending[2] or group['last-delivered-id']
     redis.call('XTRIM', stream, 'MINID', floor)
@@ -49,6 +50,14 @@ class ControlEngine(RedisEngine):
     async def publish(
         self, destination: str, payload: bytes, context: EnginePublishContext
     ) -> EnginePublishResult:
+        if destination.startswith(COMMANDS + "."):
+            group = "gateway-control-v1"
+        elif destination == EVENTS:
+            group = "django-control-v1"
+        elif destination == LIFECYCLE:
+            group = "django-lifecycle-v1"
+        else:
+            raise BusError("Unknown control destination.")
         raw = await self._client.eval(
             CAPPED_APPEND,
             1,
@@ -57,6 +66,7 @@ class ControlEngine(RedisEngine):
             payload,
             json.dumps(dict(context.headers), separators=(",", ":")),
             context.message_id,
+            group,
         )
         return EnginePublishResult(accepted=bool(raw), transport_id=raw.decode() if raw else None)
 

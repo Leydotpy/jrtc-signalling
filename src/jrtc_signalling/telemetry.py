@@ -94,6 +94,7 @@ class GatewayTelemetry:
         self.queue = Histogram()
         self.loop = Histogram()
         self.relayed = 0
+        self.relay_errors = 0
 
     def handshake(self, *, success: bool, resume: bool = False) -> None:
         outcome = "success" if success else "failure"
@@ -126,6 +127,7 @@ class GatewayTelemetry:
             lines.append(f"# TYPE jrtc_{name}_total counter")
             lines.extend(f'jrtc_{name}_total{{{label}="{v}"}} {counts[v]}' for v in values)
         lines.append(f"jrtc_relayed_connections_total {self.relayed}")
+        lines.append(f"jrtc_relay_failures_total {self.relay_errors}")
         if endpoint is not None:
             lines.extend(
                 (
