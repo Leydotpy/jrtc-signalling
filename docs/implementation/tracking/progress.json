@@ -268,16 +268,20 @@
     {
       "id": "SG-17",
       "title": "Feature-flagged local/staged cutover & rollback",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-13",
         "SG-15",
         "SG-16"
       ],
       "repos": "synq + synq.js + gateway",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-11-19T05:50:45.818404+00:00"
+      "report": "tracking/reports/SG-17.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "8ad22c05f13a87d04a16189a8ec08bcc0276cec6",
+        "Leydotpy/synq": "b36ba62c4500de607ac6d1c836a448d101861365",
+        "Leydotpy/synq.js": "0affac3f0861105901d0bd73d7c7a282c9f102eb"
+      },
+      "last_updated": "2026-11-23T18:03:22.648085+00:00"
     },
     {
       "id": "SG-18",

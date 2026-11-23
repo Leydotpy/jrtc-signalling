@@ -1,6 +1,6 @@
 # Implementation progress
 
-Updated 2026-11-19. DONE means implemented and verified for the stated task scope,
+Updated 2026-11-23. DONE means implemented and verified for the stated task scope,
 not deployed or approved for production.
 
 Work is on `codex/gateway-foundation`; it has not been merged into `main`.
@@ -24,9 +24,12 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-14 Reconnect/resume | DONE | [Report](tracking/reports/SG-14.md); gateway `4676d03`, Synq `68b0db2`, client `f43abaf`; [browser CI 44133663381](https://github.com/Leydotpy/synq.js/actions/runs/44133663381) |
 | SG-15 Multiworker ownership and drain | DONE | [Report](tracking/reports/SG-15.md), gateway `1b4ecd1`, Synq `e0b0481` |
 | SG-16 Performance, resilience and observability | DONE | [Report](tracking/reports/SG-16.md), gateway `2797d26`, Synq `90af54c` |
-| SG-17–SG-18 | NOT_STARTED | Retain the [original dependency order](EXECUTION_ORDER.md) |
+| SG-17 Staged cutover and rollback | DONE | [Report](tracking/reports/SG-17.md), gateway `8ad22c0`, Synq `b36ba62`, client `0affac3` |
+| SG-18 Final acceptance | NOT_STARTED | [End-to-end audit](tasks/SG-18_FINAL_AUDIT.md) |
 
 ## Verification
+
+SG-17 ran gateway and legacy audio in parallel. A legacy replacement could publish only after command settlement, confirmed removal of the old VideoRoom and release of its Janus session. Authenticated SSE replay reached the same terminal version as the old meeting snapshot. [SG-17 report](tracking/reports/SG-17.md) · [Operator runbook](../STAGED_CUTOVER.md)
 
 SG-16 verified 512 ICE acknowledgements across two run orders with four live audio publishers, a Redis pause and a Janus restart. The report includes tail latency from multiple runners and the measured cost of keeping a standby. [SG-16 report](tracking/reports/SG-16.md)
 
@@ -110,18 +113,12 @@ change admission, roles, permissions or joined_at.
 Optional Django projection and authenticated SSE/snapshots now provide monotonic,
 permission-filtered state, replay/snapshot repair and disposable Redis presence.
 Admission remains independent of observed connection. Lifecycle and state flags
-remain off by default and gateway readiness stays 503. Frontend integration is
-implemented behind an explicit cohort and passed SG-12 browser verification.
+remain off by default. Staged ingress becomes ready when the worker has a live
+owner and its Janus, broker and authority dependencies are healthy. The staged
+web app resolves the assigned transport from Django before constructing a call.
 SG-13 adds physical moderation, current-grant reconciliation during broker outages,
 and confirmed handle/room cleanup. Uncertain media cleanup retains its conservative
 lease fence. SG-14 adds bounded automatic resumption, fresh authority, quiet state
 repair and rebuilt media. SG-15 routes sockets and commands to the elected worker and reconciles prior Janus resources before takeover.
 
-Two tasks remain after SG-16.
-
-| Task | Remaining work |
-| --- | --- |
-| SG-17 Staged cutover and rollback | Enable selected local/staging cohorts, prove no dual ownership, and rehearse safe rollback |
-| SG-18 Final acceptance | Verify the complete cross-repository flow, failure matrix, reproducible setup and readiness evidence |
-
-SG-17 is dependency-ready. Production rollout requires a separate decision.
+SG-18 is the remaining task. Its final cross-repository acceptance report and production go/no-go are separate decisions. [SG-18 scope](tasks/SG-18_FINAL_AUDIT.md)
