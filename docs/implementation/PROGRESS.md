@@ -25,7 +25,7 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-15 Multiworker ownership and drain | DONE | [Report](tracking/reports/SG-15.md), gateway `1b4ecd1`, Synq `e0b0481` |
 | SG-16 Performance, resilience and observability | DONE | [Report](tracking/reports/SG-16.md), gateway `2797d26`, Synq `90af54c` |
 | SG-17 Staged cutover and rollback | DONE | [Report](tracking/reports/SG-17.md), gateway `8ad22c0`, Synq `b36ba62`, client `0affac3` |
-| SG-18 Final acceptance | NOT_STARTED | [End-to-end audit](tasks/SG-18_FINAL_AUDIT.md) |
+| SG-18 Final acceptance | IN_PROGRESS | [End-to-end audit](tasks/SG-18_FINAL_AUDIT.md) |
 
 ## Verification
 

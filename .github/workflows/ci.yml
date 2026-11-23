@@ -112,7 +112,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: Leydotpy/synq
-          ref: 65ffc88d487f298be0368950aa8ca4de36fd2bba
+          ref: f35eb973106c0d45848f49457d5d10e418fd37b9
           path: synq-compatibility
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
         with:
@@ -123,6 +123,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends janus
           sudo systemctl stop janus || true
           dpkg-query --show janus
+      - name: Verify the current Django ticket and command contracts
+        working-directory: synq-compatibility
+        run: uv run --frozen --with "$GITHUB_WORKSPACE" python "$GITHUB_WORKSPACE/scripts/check_django_authority.py" --synq .
       - name: Verify actual media revocation and signed Django outcomes
         working-directory: synq-compatibility
         run: >-
