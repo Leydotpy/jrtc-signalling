@@ -36,6 +36,7 @@ def main():
         GatewayCommandOutcome,
     )
     from apps.meetings.services.gateway_dispatcher import GatewayCommandWorker
+    from apps.meetings.services.gateway_tickets import GatewayDenied
     from apps.meetings.services.lifecycle import MeetingLifecycleService
     from apps.meetings.tests.test_gateway_ownership import OwnershipFixture
     from asgiref.sync import sync_to_async
@@ -55,7 +56,7 @@ def main():
     from jrtc_signalling.janus_runtime import JanusConfig, JanusRuntime
 
     class ModerationIntegration(OwnershipFixture, TransactionTestCase):
-        def exercise(self, *, broker_down, demote_host=False):
+        def exercise(self, *, broker_down, demote_host=False, end_during_outage=False):
             from aioice.ice import get_host_addresses
 
             try:
@@ -119,17 +120,25 @@ def main():
                 worker = GatewayCommandWorker(replace(self.bus, redis_url=url))
                 delivery_enabled = asyncio.Event()
                 delivery_enabled.set()
+                sweep_lock = asyncio.Lock()
                 sweep = worker.sweep
 
                 async def gated_sweep():
-                    if delivery_enabled.is_set():
-                        await sweep()
+                    async with sweep_lock:
+                        if delivery_enabled.is_set():
+                            await sweep()
 
                 worker.sweep = gated_sweep
                 worker_task = None
                 pc = RTCPeerConnection(RTCConfiguration(iceServers=[]))
                 guest = Browser(app, guest_claims, lambda _: guest_ticket["ticket"])
                 host = Browser(app, host_claims, lambda _: host_ticket["ticket"])
+
+                async def remote_peer_closed():
+                    # No client close or leave request is issued before this assertion.
+                    async with asyncio.timeout(6):
+                        while pc.connectionState != "closed":  # noqa: ASYNC110 - remote DTLS close
+                            await asyncio.sleep(0.02)
 
                 async def applied(action):
                     async with asyncio.timeout(12):
@@ -184,9 +193,42 @@ def main():
                             self.assertTrue((await guest.request("session.ping"))["ok"])
                             return
                         if broker_down:
-                            delivery_enabled.clear()
+                            async with sweep_lock:
+                                delivery_enabled.clear()
                             async with Redis.from_url(url) as redis:
                                 await redis.execute_command("CLIENT", "PAUSE", 3000, "ALL")
+                        if end_during_outage:
+                            await sync_to_async(MeetingLifecycleService.end_session)(
+                                session=self.session, actor_profile=self.host
+                            )
+                            await asyncio.wait_for(asyncio.gather(host.task, guest.task), 8)
+                            await remote_peer_closed()
+                            self.assertNotIn(ref.token, runtime.registry.bindings)
+                            self.assertFalse(runtime.registry.uncertain)
+                            with self.assertRaises(GatewayDenied):
+                                await sync_to_async(self.issue)(self.guest)
+                            pending = await sync_to_async(
+                                GatewayAuthorizationOutbox.objects.filter(
+                                    session=self.session,
+                                    action="meeting.terminate",
+                                    status="pending",
+                                ).exists
+                            )()
+                            self.assertTrue(pending)
+                            delivery_enabled.set()
+                            terminated = await applied("meeting.terminate")
+                            self.assertTrue(
+                                await sync_to_async(
+                                    GatewayCommand.objects.filter(
+                                        outbox=terminated, status="applied"
+                                    ).exists
+                                )()
+                            )
+                            result = await runtime.management(
+                                str(self.session.pk), 1, "exists", room
+                            )
+                            self.assertFalse(result.data.exists)
+                            return
                         await sync_to_async(MeetingLifecycleService.remove_participant)(
                             session=self.session,
                             actor_profile=self.host,
@@ -204,11 +246,7 @@ def main():
                             str(self.session.pk), 1, "list_participants", room
                         )
                         self.assertFalse(participants.data.participants)
-                        # No client close() or leave request has been issued.
-                        # The remote Janus detach must terminate its DTLS peer.
-                        async with asyncio.timeout(5):
-                            while pc.connectionState != "closed":  # noqa: ASYNC110 - remote DTLS close
-                                await asyncio.sleep(0.02)
+                        await remote_peer_closed()
                         self.assertTrue((await host.request("session.ping"))["ok"])
                         with self.assertRaises(WebSocketDisconnect):
                             await Browser(
@@ -283,6 +321,9 @@ def main():
 
         def test_broker_stall_cannot_keep_revoked_media_alive(self):
             self.exercise(broker_down=True)
+
+        def test_meeting_end_stops_live_media_before_broker_delivery_recovers(self):
+            self.exercise(broker_down=True, end_during_outage=True)
 
         def test_host_role_change_invalidates_live_host_media(self):
             self.exercise(broker_down=False, demote_host=True)
