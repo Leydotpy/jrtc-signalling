@@ -201,6 +201,8 @@ def main():
                             await sync_to_async(MeetingLifecycleService.end_session)(
                                 session=self.session, actor_profile=self.host
                             )
+                            # Cross a real owner heartbeat while command delivery is paused.
+                            await runtime.authority.request(str(self.session.pk), "renew", 1)
                             await asyncio.wait_for(asyncio.gather(host.task, guest.task), 8)
                             await remote_peer_closed()
                             self.assertNotIn(ref.token, runtime.registry.bindings)
