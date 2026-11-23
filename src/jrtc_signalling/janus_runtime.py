@@ -667,16 +667,19 @@ class JanusRuntime:
             raise OwnershipError("Janus cleanup requires reconciliation.")
 
     def health(self) -> DependencyHealth:
+        ended = self.moderation.terminated if self.moderation is not None else set()
+        drained = ended.difference(self.moderation.pending_rooms) if self.moderation else set()
+        # A finished meeting keeps its lease record for signed shutdown release.
+        # Its clock can expire while this worker continues serving other meetings.
         current = (
             self.active
             and not self.retiring
             and not self.stopping.is_set()
-            and any(
-                self.moderation is None or meeting not in self.moderation.terminated
-                for meeting in self.leases
-            )
+            and any(meeting not in ended for meeting in self.leases)
             and all(
-                lease.deadline > asyncio.get_running_loop().time() for lease in self.leases.values()
+                lease.deadline > asyncio.get_running_loop().time()
+                for meeting, lease in self.leases.items()
+                if meeting not in drained
             )
         )
         return DependencyHealth(

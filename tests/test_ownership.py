@@ -137,6 +137,21 @@ async def test_expired_lease_fences_cached_handle(runtime):
     assert runtime.health().ownership == "unavailable"
 
 
+async def test_readiness_ignores_a_drained_meetings_expired_lease(runtime, monkeypatch):
+    live = runtime.config.meetings[0]
+    finished = str(uuid4())
+    expired = replace(runtime.leases[live], meeting_id=finished, deadline=0)
+    moderation = SimpleNamespace(terminated={finished}, pending_rooms={finished: 1})
+    with monkeypatch.context() as changes:
+        changes.setitem(runtime.leases, finished, expired)
+        changes.setattr(runtime, "moderation", moderation)
+        assert runtime.health().ownership == "unavailable"
+        moderation.pending_rooms.clear()
+        assert runtime.health().ownership == "ready"
+        moderation.terminated.add(live)
+        assert runtime.health().ownership == "unavailable"
+
+
 async def test_session_replacement_never_resurrects_handle(runtime):
     ref = await runtime.registry.attach(*params(runtime))
     old = runtime.manager.sessions[0]
