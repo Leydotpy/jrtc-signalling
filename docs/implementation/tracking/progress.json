@@ -286,14 +286,18 @@
     {
       "id": "SG-18",
       "title": "End-to-end evidence and readiness report",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "dependencies": [
         "SG-17"
       ],
       "repos": "all",
-      "report": null,
-      "commits": {},
-      "last_updated": "2026-11-23T18:18:54.685509+00:00"
+      "report": "tracking/reports/SG-18.md",
+      "commits": {
+        "Leydotpy/jrtc-signalling": "2c4e6d623f265b6aa2ba28a3b4bcca417d1c0c4c",
+        "Leydotpy/synq": "af07fc5dcdc9d284a6fbd85f26f2e1aaaf417f8c",
+        "Leydotpy/synq.js": "7a1963bd271fc8d0d1e19cdacfa7c16613d8a614"
+      },
+      "last_updated": "2026-11-24T05:10:29.001434+00:00"
     }
   ]
 }

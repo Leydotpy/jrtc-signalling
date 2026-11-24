@@ -1,9 +1,9 @@
 # Implementation progress
 
-Updated 2026-11-23. DONE means implemented and verified for the stated task scope,
-not deployed or approved for production.
+Updated 2026-11-24. All 19 tasks passed their isolated implementation and acceptance checks.
+Production cutover requires a separate maintainer decision.
 
-Work is on `codex/gateway-foundation`; it has not been merged into `main`.
+The gateway, Synq and browser changes are on their feature branches for maintainer review.
 
 | Task | State | Evidence / implementation commit |
 | --- | --- | --- |
@@ -25,9 +25,11 @@ Work is on `codex/gateway-foundation`; it has not been merged into `main`.
 | SG-15 Multiworker ownership and drain | DONE | [Report](tracking/reports/SG-15.md), gateway `1b4ecd1`, Synq `e0b0481` |
 | SG-16 Performance, resilience and observability | DONE | [Report](tracking/reports/SG-16.md), gateway `2797d26`, Synq `90af54c` |
 | SG-17 Staged cutover and rollback | DONE | [Report](tracking/reports/SG-17.md), gateway `8ad22c0`, Synq `b36ba62`, client `0affac3` |
-| SG-18 Final acceptance | IN_PROGRESS | [End-to-end audit](tasks/SG-18_FINAL_AUDIT.md) |
+| SG-18 Final acceptance | DONE | [Final report](tracking/reports/SG-18.md), gateway `2c4e6d6`, Synq `af07fc5`, client `7a1963b` |
 
 ## Verification
+
+SG-18 passed all nine CI jobs. Each supported Python version passed 541 gateway tests, the dedicated job passed eight Janus/TURN cases, and Synq passed 267 database-backed tests. Chromium exercised admission, relay media, recovery, removal and terminal-state access. The canary verified rollback to legacy audio. [Test matrix](tracking/reports/SG-18.md) · [Reproduce the demo](../ACCEPTANCE_DEMO.md)
 
 SG-17 ran gateway and legacy audio in parallel. A legacy replacement could publish only after command settlement, confirmed removal of the old VideoRoom and release of its Janus session. Authenticated SSE replay reached the same terminal version as the old meeting snapshot. [SG-17 report](tracking/reports/SG-17.md) · [Operator runbook](../STAGED_CUTOVER.md)
 
@@ -121,4 +123,4 @@ and confirmed handle/room cleanup. Uncertain media cleanup retains its conservat
 lease fence. SG-14 adds bounded automatic resumption, fresh authority, quiet state
 repair and rebuilt media. SG-15 routes sockets and commands to the elected worker and reconciles prior Janus resources before takeover.
 
-SG-18 is the remaining task. Its final cross-repository acceptance report and production go/no-go are separate decisions. [SG-18 scope](tasks/SG-18_FINAL_AUDIT.md)
+The implementation tracker has no pending or blocked tasks. The hosted login flow, production-network and load checks, and the decision to retire legacy signalling remain release work. [Release checklist](checklists/ACCEPTANCE.md)

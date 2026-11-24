@@ -5,15 +5,12 @@ for identity, admission, roles and revocation. JRTC and VideoRoom manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-SG-00–SG-08 provide the service scaffold, wire contracts, Django ticket/admission
-authority, gateway authentication, durable signed command/outcome delivery and
-optional exclusive JRTC runtime ownership and bounded browser media dispatch.
-**Media signalling is disabled by default.** Isolated media rehearsal requires
-explicit TLS/auth/runtime configuration and its own opt-in flag; readiness
-remains 503 until the later acceptance gates are complete.
-Existing Django/browser signalling remains unchanged. SG-09 adds ordered ICE and
-fenced restart handling. SG-10 adds optional durable lifecycle observations and
-an authenticated Django consumer, keeping permission decisions in Django.
+**Media signalling is disabled by default.** Django assigns each new meeting
+session to a transport. For gateway sessions, the browser sends SDP and ICE over
+WebSocket and exchanges media with Janus. Signed lifecycle events travel through
+Broka to Django, which projects the committed state and streams it to React.
+Staged ingress opens when the worker has an owner lease and its dependencies are
+healthy. [Run the acceptance demo](docs/ACCEPTANCE_DEMO.md)
 
 See [progress and blockers](docs/implementation/PROGRESS.md),
 [v1 protocol and compatibility map](docs/PROTOCOL.md),
@@ -40,8 +37,9 @@ Use these entrypoints to retain safe logging and WebSocket server limits.
 Settings are read from `JRTC_SIGNALLING_*` environment variables; see
 [.env.example](.env.example). Dotenv files are not loaded automatically.
 No Django settings, Janus URL or broker credentials are needed for the scaffold.
-The rehearsal flag enables media dispatch and [ordered ICE/restart](docs/ICE_SIGNALLING.md);
-production readiness remains closed.
+The rehearsal flag enables media dispatch and ordered ICE handling. Staged
+ingress additionally requires working Janus, Broka, authority and ownership.
+[ICE and restart](docs/ICE_SIGNALLING.md)
 
 | Endpoint | Scaffold response | Purpose |
 | --- | --- | --- |
@@ -104,6 +102,7 @@ deployment has been created.
 
 ## Implementation status
 
-SG-15 verified multiworker ownership, routing and graceful drain. SG-16 adds
-bounded instrumentation and a paired ICE benchmark with real Janus audio.
-SG-17 adds operator-selected room cohorts and verified failback. [Staged cutover runbook](docs/STAGED_CUTOVER.md) · [Current task tracker](docs/implementation/PROGRESS.md)
+SG-00 through SG-18 are complete for isolated acceptance. The feature branches
+are ready for maintainer review. A production rollout requires a separate decision.
+[Final acceptance report](docs/implementation/tracking/reports/SG-18.md) ·
+[Staged cutover and rollback](docs/STAGED_CUTOVER.md) · [Task tracker](docs/implementation/PROGRESS.md)

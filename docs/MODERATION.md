@@ -50,10 +50,11 @@ retains the owner fence for resource reconciliation; it cannot be reported appli
 
 Meeting termination closes its sessions, reconciles their handles, destroys the
 private room and checks that the room is absent. Failed destruction retains the
-room ID/secret for retry. A terminated meeting's existing lease is not extended;
-Django's expected renewal refusal does not drain other meetings on the worker.
-Cleanup and outcome delivery use the remaining finite lease. Expired ownership
-does not authorize takeover or unbounded cleanup retries under a new owner.
+room ID/secret for retry. If delivery stalls after Django ends a meeting, a
+heartbeat from the current owner returns the time left on its original lease.
+This applies to both staging selectors. The owner can finish disposal and report
+its outcome within that window. New claims and expired or mismatched generations
+are refused.
 
 ## Outcomes, bounds and audit
 
@@ -87,11 +88,12 @@ environment with this checkout, pytest and aiortc installed. It requires isolate
 PostgreSQL/Redis (`conf.gateway_postgres_test_settings`, `GATEWAY_TEST_REDIS_URL`)
 and a Janus binary. It verifies signed Django admission/removal/termination,
 actual WebRTC/Janus disconnection, stale-ticket rejection, persisted command
-outcomes, host membership-role revocation and a real Redis stall. The CI workflow
-pins the compatible Synq revision and runs this test independently.
+outcomes, host membership-role revocation and a real Redis stall. A fourth case
+ends a publishing meeting while command delivery is paused, crosses a real owner
+heartbeat, verifies remote disconnection and then verifies signed cleanup after
+delivery resumes. The CI workflow pins the compatible Synq revision.
 
-Production readiness remains 503 and the legacy path remains available. This task
-does not certify automatic reconnect (SG-14), reconciled crash/failover takeover
-(SG-15), deployment load/latency (SG-16), or production cutover. The authority
-preflight on sensitive operations is retained; periodic checks add authority
-traffic that must be included in later capacity measurements.
+Staged readiness depends on the live owner and its dependencies. Include periodic
+authority checks when measuring capacity for a target deployment. The final
+report covers reconnect, failover, bounded load and rollback.
+[Acceptance report](implementation/tracking/reports/SG-18.md)

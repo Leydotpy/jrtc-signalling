@@ -1,11 +1,8 @@
 # Signalling v1 contract
 
-Status: SG-09. Shapes, bounded parsing, authentication, signed command delivery,
-opt-in media dispatch and ordered ICE/restart are implemented. Domain projection,
-SSE, physical command enforcement and client cutover remain
-later gates. See [media enablement and exact limits](MEDIA_SIGNALLING.md).
-This document and the exported schemas supersede the imported draft for this
-service. They do not change any current SDK method or Django endpoint.
+The gateway, Django projector and React SDK implement the v1 staged protocol.
+The exported schemas define the wire format. [Media enablement and limits](MEDIA_SIGNALLING.md) ·
+[End-to-end acceptance](implementation/tracking/reports/SG-18.md)
 
 Canonical definitions: `src/jrtc_signalling/schema_definitions.py`. Language-neutral
 JSON Schema 2020-12: `src/jrtc_signalling/schemas/v1/`. Synthetic examples for every
@@ -49,10 +46,9 @@ and time-window constraints, which JSON Schema cannot express.
 
 ## Compatibility map
 
-Source paths and exact SHAs are recorded in [SG-00](implementation/tracking/reports/SG-00.md).
-This maps the v1 server operations to the future client transport adapter;
-synq.js itself is unchanged. Its existing batcher is exercised by pinned fixtures;
-the browser transport adapter remains SG-12.
+The feature-flagged synq.js adapter preserves the public meeting methods below.
+The original inventory and the adapter report document their source revisions.
+[Baseline](implementation/tracking/reports/SG-00.md) · [Client adapter](implementation/tracking/reports/SG-12.md)
 
 | Current MeetingConnection call / Socket.IO event | v1 gateway operation | Payload and response |
 | --- | --- | --- |
@@ -155,9 +151,9 @@ Existing state mapping:
 | participant removed | REVOKED | enforcement can still be pending |
 | disconnected / stale / left | no new admission decision | connection/lifecycle observation |
 
-SSE design: `GET /api/v1/meetings/sessions/{id}/events/` (planned SG-11), event
-`state.changed`, Last-Event-ID replay and committed projection versions.
-Notifications invalidate affected participants; the client refreshes the existing
-`sessions/{id}/state/` snapshot into the existing store. A gap, expired replay or
-generation change forces a snapshot. Initial/replay/snapshot contexts remain
-silent for sounds. An SSE event never independently grants admission.
+Django serves `GET /api/v1/meetings/sessions/{id}/gateway/events/` with
+`state.changed` notifications, committed projection versions and `Last-Event-ID`
+replay. The SDK reads `/api/v1/meetings/sessions/{id}/gateway/state/?sdk=1`
+to reconcile its store. On a cursor gap or expired history it fetches a current
+snapshot. Initial state, replay and snapshot repair are silent. Django checks
+the caller's current authority on both routes.
