@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jrtc-signalling"
+version = "0.1.0"
+description = "Standalone Synq WebRTC signalling gateway"
+requires-python = ">=3.12,<3.15"
+readme = "README.md"
+dependencies = [
+  "jsonschema>=4.26,<5",
+  "starlette>=1.10,<2",
+  "uvicorn>=0.54,<1",
+  "websockets>=16.1,<17",
+  "PyJWT[crypto]>=2.13,<3",
+  "httpx2>=2.16,<3",
+]
+
+[project.scripts]
+jrtc-signalling = "jrtc_signalling.__main__:main"
+
+[project.optional-dependencies]
+bus = ["broka==0.0.2", "redis>=8.1,<9", "httpx2[socks]>=2.16,<3"]
+runtime = ["jrtc-signalling[bus]", "jrtc>=3.2,<4", "jrtc-video>=3.0.3,<4"]
+
+[tool.uv.sources]
+jrtc = { git = "https://github.com/Leydotpy/jrtc.git", rev = "b0998af03c0702302855cc7c52c3dd53ac7a32af" }
+jrtc-video = { git = "https://github.com/Leydotpy/jrtc-plugins.git", rev = "eed430960cc88fa574370d62eae502093757a9f1", subdirectory = "jrtc-video" }
+
+# Broka's 0.0.2 wheel lists all optional engines/Django as mandatory, including
+# Django >=6.1 (which excludes our Python 3.12 support). Its core/Redis SPI uses
+# only redis; this audited metadata correction applies to frozen uv installs.
+[[tool.uv.dependency-metadata]]
+name = "broka"
+version = "0.0.2"
+requires-python = ">=3.12"
+requires-dist = ["redis>=8.1,<9"]
+
+[dependency-groups]
+dev = [
+  "build>=1.6,<2",
+  "mypy>=1.20,<2",
+  "pytest>=9.2,<10",
+  "ruff>=0.17,<1",
+  "types-jsonschema>=4.26,<5",
+  "pytest-asyncio>=1.4,<2",
+]
+media-test = [
+    "aiortc>=1.14,<2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jrtc_signalling = ["py.typed", "schemas/v1/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-config --strict-markers"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "C4", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src/jrtc_signalling"]

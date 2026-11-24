@@ -1,0 +1,201 @@
+"""Standalone ASGI factory with an explicit, non-production media rehearsal."""
+
+import asyncio
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from functools import partial
+from typing import Any
+
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Route, WebSocketRoute
+from starlette.websockets import WebSocket
+
+from .auth import AuthConfig, Authority, HTTPAuthority
+from .config import ConfigurationError, Settings
+from .runtime import DependencyHealth, Lifecycle, Runtime, ScaffoldRuntime
+from .telemetry import CONTENT_TYPE, GatewayTelemetry, authorized, read_key
+from .websocket_auth import AuthenticatedEndpoint
+
+
+def create_app(
+    settings: Settings | None = None,
+    *,
+    runtime_factory: Callable[[], Runtime] | None = None,
+    auth_config: AuthConfig | None = None,
+    authority_factory: Callable[[AuthConfig], Authority] = HTTPAuthority,
+) -> Starlette:
+    selected = settings if settings is not None else Settings.from_env()
+    token = read_key(selected.metrics_token_file)
+    telemetry = GatewayTelemetry(read_key(selected.trace_key_file))
+    authentication = auth_config
+    if authentication is None and selected.auth_config_file:
+        authentication = AuthConfig.read(selected.auth_config_file)
+    if (selected.media_rehearsal or selected.lifecycle_events) and authentication is None:
+        raise ConfigurationError("Media rehearsal and lifecycle events require authentication.")
+    factory: Callable[[], Runtime] = runtime_factory or ScaffoldRuntime
+    if runtime_factory is None and selected.bus_config_file:
+        try:
+            from .bus import BusConfig
+            from .commands import CommandRuntime
+
+            bus_config = BusConfig.read(selected.bus_config_file, gateway=True)
+            factory = partial(CommandRuntime, bus_config)
+            if selected.runtime_config_file:
+                from .janus_runtime import JanusConfig, JanusRuntime
+
+                janus_config = JanusConfig.read(selected.runtime_config_file)
+                if janus_config.workers and not selected.media_rehearsal:
+                    raise ValueError("Multiworker ownership requires media rehearsal.")
+                factory = partial(JanusRuntime, bus_config, janus_config)
+        except (ValueError, ImportError):
+            raise ConfigurationError(
+                "Invalid command-plane configuration or missing bus extra."
+            ) from None
+
+    @asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        lifecycle = Lifecycle(factory(), selected)
+        event_runtime = None
+        if selected.lifecycle_events:
+            from .janus_runtime import JanusRuntime
+            from .lifecycle_events import LifecyclePublisher
+
+            if not isinstance(lifecycle.runtime, JanusRuntime):
+                raise ConfigurationError("Lifecycle events require fenced Janus runtime.")
+            event_runtime = lifecycle.runtime
+            event_runtime.lifecycle = LifecyclePublisher(event_runtime.bus)
+        app.state.lifecycle = lifecycle
+        await lifecycle.start()
+        observers: list[asyncio.Task[None]] = []
+        try:
+            if authentication is not None:
+                media = None
+                if selected.media_rehearsal:
+                    from .janus_runtime import JanusRuntime
+                    from .media import MediaHub
+
+                    if not isinstance(lifecycle.runtime, JanusRuntime):
+                        raise ConfigurationError("Media rehearsal requires fenced Janus runtime.")
+                    media = MediaHub(lifecycle.runtime)
+                app.state.auth_endpoint = AuthenticatedEndpoint(
+                    authentication,
+                    selected,
+                    authority_factory(authentication),
+                    media,
+                    event_runtime=event_runtime,
+                    telemetry=telemetry,
+                )
+            if token:
+                observers.append(asyncio.create_task(telemetry.sample_loop()))
+                control = getattr(lifecycle.runtime, "control", lifecycle.runtime)
+                if hasattr(control, "sample_depth"):
+                    observers.append(asyncio.create_task(control.sample_depth()))
+            yield
+        finally:
+            for task in observers:
+                task.cancel()
+            await asyncio.gather(*observers, return_exceptions=True)
+            try:
+                if app.state.auth_endpoint is not None:
+                    await app.state.auth_endpoint.aclose()
+            finally:
+                app.state.auth_endpoint = None
+                await lifecycle.stop()
+
+    def snapshot(app: Starlette) -> dict[str, Any]:
+        lifecycle: Lifecycle | None = app.state.lifecycle
+        phase = lifecycle.phase if lifecycle else "starting"
+        dependencies = lifecycle.health() if lifecycle else DependencyHealth()
+        return {
+            "phase": phase,
+            "dependencies": dependencies.as_dict(),
+            "signalling": "rehearsal" if selected.media_rehearsal else "disabled",
+            "ready": bool(
+                selected.staged_routing
+                and phase == "running"
+                and app.state.auth_endpoint is not None
+                and dependencies.ready
+            ),
+        }
+
+    async def metrics(request: Request) -> Response:
+        headers = {"Cache-Control": "no-store"}
+        if not token:
+            return Response(status_code=404, headers=headers)
+        auth = request.headers.getlist("authorization")
+        if (
+            len(auth) != 1
+            or request.scope.get("query_string")
+            or not authorized(token, request.url.scheme == "https", auth[0])
+        ):
+            return Response(status_code=403, headers=headers)
+        lifecycle = request.app.state.lifecycle
+        return Response(
+            telemetry.render(
+                request.app.state.auth_endpoint, lifecycle.runtime if lifecycle else None
+            ),
+            headers={**headers, "Content-Type": CONTENT_TYPE},
+        )
+
+    async def live(request: Request) -> JSONResponse:
+        lifecycle: Lifecycle | None = request.app.state.lifecycle
+        phase = lifecycle.phase if lifecycle else "starting"
+        alive = phase in {"running", "draining"}
+        if lifecycle and phase == "running":
+            stop = getattr(lifecycle.runtime, "stopping", None)
+            if stop is not None and stop.is_set():
+                alive = False
+        return JSONResponse(
+            {"status": "alive" if alive else "not_alive", "phase": phase},
+            status_code=200 if alive else 503,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    async def ready(request: Request) -> JSONResponse:
+        state = snapshot(request.app)
+        return JSONResponse(
+            {"status": "ready" if state["ready"] else "not_ready", **state},
+            status_code=200 if state["ready"] else 503,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    async def websocket_unavailable(websocket: WebSocket) -> None:
+        endpoint: AuthenticatedEndpoint | None = websocket.app.state.auth_endpoint
+        lifecycle: Lifecycle | None = websocket.app.state.lifecycle
+        if (
+            endpoint is not None
+            and lifecycle is not None
+            and lifecycle.phase == "running"
+            and (not selected.staged_routing or snapshot(websocket.app)["ready"])
+        ):
+            await endpoint(websocket)
+            return
+        telemetry.handshake(success=False)
+        if "websocket.http.response" in websocket.scope.get("extensions", {}):
+            await websocket.send_denial_response(
+                JSONResponse(
+                    {"error": {"code": "UNAVAILABLE", "message": "Signalling is not enabled."}},
+                    status_code=503,
+                    headers={"Cache-Control": "no-store", "Retry-After": "30"},
+                )
+            )
+        else:
+            # Before accept this becomes an HTTP denial, not an authenticated socket.
+            await websocket.close(code=1008, reason="Signalling is not enabled.")
+
+    app = Starlette(
+        debug=False,
+        routes=[
+            Route("/metrics", metrics),
+            Route("/health/live", live),
+            Route("/health/ready", ready),
+            Route("/health", ready),
+            WebSocketRoute(selected.websocket_path, websocket_unavailable),
+        ],
+        lifespan=lifespan,
+    )
+    app.state.lifecycle = None
+    app.state.auth_endpoint = None
+    return app

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jrtc-signalling:v1:ticket-header",
+  "title": "ticket-header",
+  "type": "object",
+  "properties": {
+    "alg": {
+      "const": "RS256"
+    },
+    "typ": {
+      "const": "JWT"
+    },
+    "kid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    }
+  },
+  "required": [
+    "alg",
+    "typ",
+    "kid"
+  ],
+  "additionalProperties": false
+}

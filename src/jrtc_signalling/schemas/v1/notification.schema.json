@@ -1,0 +1,337 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jrtc-signalling:v1:notification",
+  "title": "notification",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "op": {
+      "enum": [
+        "session.ready",
+        "session.revoked",
+        "session.reconnect_required",
+        "media.jsep",
+        "media.event",
+        "error"
+      ]
+    },
+    "meeting_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "participant_session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "server_time": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "payload": {}
+  },
+  "required": [
+    "version",
+    "event_id",
+    "op",
+    "meeting_id",
+    "participant_session_id",
+    "generation",
+    "sequence",
+    "server_time",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "op": {
+          "const": "session.ready"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "participant_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+            },
+            "scopes": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "lobby",
+                  "media:publish",
+                  "media:subscribe",
+                  "session:resume"
+                ]
+              }
+            },
+            "authorization_epoch": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "gateway_owner_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+            },
+            "gateway_generation": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "participant_id",
+            "scopes",
+            "authorization_epoch",
+            "gateway_owner_id",
+            "gateway_generation"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "session.revoked"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "requested",
+                "denied",
+                "revoked",
+                "meeting_ended",
+                "transport_lost",
+                "expired",
+                "owner_lost",
+                "permission_changed",
+                "unavailable",
+                "timeout",
+                "normal"
+              ]
+            }
+          },
+          "required": [
+            "reason_code"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "session.reconnect_required"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "reason_code": {
+              "enum": [
+                "requested",
+                "denied",
+                "revoked",
+                "meeting_ended",
+                "transport_lost",
+                "expired",
+                "owner_lost",
+                "permission_changed",
+                "unavailable",
+                "timeout",
+                "normal"
+              ]
+            }
+          },
+          "required": [
+            "reason_code"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "media.jsep"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "handle_type": {
+              "enum": [
+                "publisher",
+                "subscriber"
+              ]
+            },
+            "negotiation_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+            },
+            "jsep": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "enum": [
+                    "offer",
+                    "answer"
+                  ]
+                },
+                "sdp": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 65536
+                }
+              },
+              "required": [
+                "type",
+                "sdp"
+              ],
+              "additionalProperties": false
+            },
+            "transaction": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "handle_type",
+            "negotiation_id",
+            "jsep",
+            "transaction"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "media.event"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "handle_type": {
+              "enum": [
+                "publisher",
+                "subscriber"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "webrtcup",
+                "media",
+                "hangup",
+                "detached",
+                "topology_changed"
+              ]
+            },
+            "janus_handle_id": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "handle_type",
+            "kind",
+            "janus_handle_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "op": {
+          "const": "error"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "INVALID_MESSAGE",
+                "UNSUPPORTED_VERSION",
+                "UNAUTHENTICATED",
+                "FORBIDDEN",
+                "EXPIRED_TICKET",
+                "REPLAYED_TICKET",
+                "STALE_GENERATION",
+                "STALE_AUTHORIZATION",
+                "STALE_NEGOTIATION",
+                "OUT_OF_ORDER",
+                "RATE_LIMITED",
+                "OVERLOADED",
+                "UNAVAILABLE",
+                "TIMEOUT",
+                "OUTCOME_UNKNOWN",
+                "NOT_IMPLEMENTED"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "retryable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "retryable"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

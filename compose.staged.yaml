@@ -1,0 +1,22 @@
+# Overlay for an isolated canary worker. Supply the protected configuration directory.
+services:
+  gateway:
+    environment:
+      JRTC_SIGNALLING_AUTH_CONFIG_FILE: /run/gateway/auth.json
+      JRTC_SIGNALLING_BUS_CONFIG_FILE: /run/gateway/bus.json
+      JRTC_SIGNALLING_RUNTIME_CONFIG_FILE: /run/gateway/runtime.json
+      JRTC_SIGNALLING_MEDIA_REHEARSAL: "true"
+      JRTC_SIGNALLING_LIFECYCLE_EVENTS: "true"
+      JRTC_SIGNALLING_STAGED_ROUTING: "true"
+      JRTC_SIGNALLING_SHUTDOWN_TIMEOUT: "30"
+    volumes:
+      - ${GATEWAY_STAGE_CONFIG_DIR:?set the isolated configuration directory}:/run/gateway:ro
+      - gateway-stage-state:/var/lib/gateway
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health/ready', timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    stop_grace_period: 40s
+volumes:
+  gateway-stage-state:

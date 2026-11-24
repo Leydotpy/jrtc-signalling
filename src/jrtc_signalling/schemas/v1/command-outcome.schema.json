@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jrtc-signalling:v1:command-outcome",
+  "title": "command-outcome",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "type": {
+      "const": "command.outcome"
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "meeting_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "gateway_owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "gateway_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "authorization_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "applied",
+        "failed",
+        "timed_out"
+      ]
+    },
+    "reason_code": {
+      "enum": [
+        "requested",
+        "denied",
+        "revoked",
+        "meeting_ended",
+        "transport_lost",
+        "expired",
+        "owner_lost",
+        "permission_changed",
+        "unavailable",
+        "timeout",
+        "normal"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "type",
+    "command_id",
+    "meeting_id",
+    "gateway_owner_id",
+    "gateway_generation",
+    "authorization_epoch",
+    "occurred_at",
+    "trace_id",
+    "status",
+    "reason_code"
+  ],
+  "additionalProperties": false
+}

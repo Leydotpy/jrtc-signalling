@@ -1,13 +1,108 @@
 # JRTC signalling
 
 Dedicated Python ASGI signalling service for Synq. Django remains the authority
-for identity, admission, roles and revocation. JRTC and VideoRoom will manage
+for identity, admission, roles and revocation. JRTC and VideoRoom manage
 Janus sessions in this separately deployed process; browser media goes directly
 to Janus.
 
-Implementation follows the [task pack](docs/implementation/README.md) in dependency
-order. See [progress](docs/implementation/PROGRESS.md) and the
-[baseline report](docs/implementation/tracking/reports/SG-00.md).
+**Media signalling is disabled by default.** Django assigns each new meeting
+session to a transport. For gateway sessions, the browser sends SDP and ICE over
+WebSocket and exchanges media with Janus. Signed lifecycle events travel through
+Broka to Django, which projects the committed state and streams it to React.
+Staged ingress opens when the worker has an owner lease and its dependencies are
+healthy. [Run the acceptance demo](docs/ACCEPTANCE_DEMO.md)
 
-This is an implementation in progress, not a deployed media service. Existing
-Django and browser signalling remain unchanged.
+See [progress and blockers](docs/implementation/PROGRESS.md),
+[v1 protocol and compatibility map](docs/PROTOCOL.md),
+[ticket security contract](docs/SECURITY.md),
+[authentication setup](docs/AUTHENTICATION.md),
+[command delivery setup](docs/COMMAND_PLANE.md),
+[lifecycle observation delivery](docs/LIFECYCLE_EVENTS.md),
+[runtime ownership rehearsal](docs/RUNTIME_OWNERSHIP.md),
+[media signalling rehearsal](docs/MEDIA_SIGNALLING.md) and the
+[instruction pack](docs/implementation/README.md).
+
+## Run locally
+
+Python 3.12–3.14 and uv 0.13.4:
+
+```sh
+uv sync --locked --group dev --extra runtime
+uv run jrtc-signalling --check-config
+uv run jrtc-signalling
+```
+
+Default listener: `127.0.0.1:8765`. `python -m jrtc_signalling` is equivalent.
+Use these entrypoints to retain safe logging and WebSocket server limits.
+Settings are read from `JRTC_SIGNALLING_*` environment variables; see
+[.env.example](.env.example). Dotenv files are not loaded automatically.
+No Django settings, Janus URL or broker credentials are needed for the scaffold.
+The rehearsal flag enables media dispatch and ordered ICE handling. Staged
+ingress additionally requires working Janus, Broka, authority and ownership.
+[ICE and restart](docs/ICE_SIGNALLING.md)
+
+| Endpoint | Scaffold response | Purpose |
+| --- | --- | --- |
+| GET /metrics | HTTPS bearer when configured | [Gateway and Django observability](docs/OBSERVABILITY.md) |
+| GET /health/live | 200 while running/draining | process liveness |
+| GET /health/ready | 503, dependencies and signalling=disabled | traffic readiness |
+| GET /health | same as readiness | aggregate status |
+| WS /ws | Disabled by default; configured WSS accepts authenticated sessions | control/media rehearsal |
+
+The gateway reports Janus, Broka, authority and ownership independently.
+No real connections are made by ScaffoldRuntime. Instance UUIDs are diagnostic;
+they are not distributed lease/generation fences. SIGTERM drains then closes
+owned resources within the configured cooperative timeout. Lifecycle failure
+does not masquerade as successful shutdown.
+
+Logs are JSON with safe event names, level and timestamp. Raw messages, URL
+queries, arguments and tracebacks are excluded, including Uvicorn's handshake
+logs. Ingress/proxy logging must independently omit credentials and query strings.
+
+## Verification
+
+```sh
+uv run --extra runtime ruff check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run --extra runtime ruff format --check src tests scripts/export_schemas.py scripts/check_django_authority.py
+uv run --extra runtime mypy
+uv run python scripts/export_schemas.py --check
+uv run --extra runtime pytest -q
+uv build
+```
+
+Tests cover wire compatibility, invalid inputs, lifecycle failures/cancellation,
+dependency degradation, configuration, log redaction, real HTTP/HTTPS/WS/WSS processes,
+and SIGTERM. Signature/origin/replay/refresh/revocation and bounded authority tests
+cover SG-04. GitHub Actions runs Python 3.12/3.13/3.14, container smoke and a pinned
+Synq issuer/admission/authority handoff and all five outbox command payload checks.
+SG-06 adds real Redis delivery, reclaim/restart, bounded consumers and signed
+outcome checks. Synq's PostgreSQL/Redis suite verifies transactional outbox writes,
+concurrent claims, revocation races and a broker outage/retry through the gateway
+and real Django authority endpoint. SG-07 adds signed ownership HTTP round trips,
+PostgreSQL owner-claim races and two isolated live Janus tests through ASGI
+startup/shutdown, including reusable management handles, concurrent attachment,
+disposal and server recovery. SG-08 adds wire-level mock Janus dispatch and a real
+publisher/subscriber offer/answer/start exchange receiving an audio frame through
+Janus. Install `--group media-test` for the opted-in Janus tests; see the media
+rehearsal guide. SG-12 records browser/TURN acceptance; [SG-13](docs/MODERATION.md)
+adds command-side physical removal and its failure/race verification.
+
+## Local container
+
+```sh
+docker compose up --build
+# Optional local source mount; restart gateway after edits:
+docker compose -f compose.yaml -f compose.dev.yaml up --build
+```
+
+Compose binds only localhost, drops capabilities and uses a read-only filesystem.
+The image runs as a non-root user. Its healthcheck probes liveness; an image being
+healthy does **not** mean it can serve media. No production service, secrets or
+deployment has been created.
+
+## Implementation status
+
+SG-00 through SG-18 are complete for isolated acceptance. The feature branches
+are ready for maintainer review. A production rollout requires a separate decision.
+[Final acceptance report](docs/implementation/tracking/reports/SG-18.md) ·
+[Staged cutover and rollback](docs/STAGED_CUTOVER.md) · [Task tracker](docs/implementation/PROGRESS.md)
