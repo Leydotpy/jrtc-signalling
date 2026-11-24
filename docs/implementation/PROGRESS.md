@@ -25,7 +25,7 @@ The gateway, Synq and browser changes are on their feature branches for maintain
 | SG-15 Multiworker ownership and drain | DONE | [Report](tracking/reports/SG-15.md), gateway `1b4ecd1`, Synq `e0b0481` |
 | SG-16 Performance, resilience and observability | DONE | [Report](tracking/reports/SG-16.md), gateway `2797d26`, Synq `90af54c` |
 | SG-17 Staged cutover and rollback | DONE | [Report](tracking/reports/SG-17.md), gateway `8ad22c0`, Synq `b36ba62`, client `0affac3` |
-| SG-18 Final acceptance | DONE | [Final report](tracking/reports/SG-18.md), gateway `2c4e6d6`, Synq `af07fc5`, client `7a1963b` |
+| SG-18 Final acceptance | DONE | [Final report](tracking/reports/SG-18.md), gateway `6d2536e`, Synq `0bff1ab`, client `35927e5` |
 
 ## Verification
 

@@ -29,9 +29,9 @@ uv python install 3.14
 git clone --single-branch --branch codex/gateway-foundation https://github.com/Leydotpy/jrtc-signalling.git gateway
 git clone --single-branch --branch codex/gateway-control-plane https://github.com/Leydotpy/synq.git synq
 git clone --single-branch --branch codex/gateway-transport https://github.com/Leydotpy/synq.js.git client
-git -C gateway checkout --detach 2c4e6d623f265b6aa2ba28a3b4bcca417d1c0c4c
-git -C synq checkout --detach af07fc5dcdc9d284a6fbd85f26f2e1aaaf417f8c
-git -C client checkout --detach 7a1963bd271fc8d0d1e19cdacfa7c16613d8a614
+git -C gateway checkout --detach 6d2536e57c9e170236790789e8ee90bd746cf234
+git -C synq checkout --detach 0bff1ab929054e56697c2a7a0410d2e76221e555
+git -C client checkout --detach 35927e514d035d8bcf7dbb6f1404a86f4513ee4f
 ```
 
 The Synq lockfile installs gateway runtime `8ad22c05f13a87d04a16189a8ec08bcc0276cec6`. The gateway checkout above includes the final acceptance tests. Both revisions have the same runtime source, packaging and dependency lock.
@@ -68,7 +68,7 @@ docker exec "$redis_container" redis-cli ping | grep -qx PONG
 bash client/scripts/verify-gateway-browser.sh synq gateway
 ```
 
-The browser command installs locked workspace packages, builds and typechecks the SDK and app, runs their test suites, and installs Playwright 1.57.0 with Chromium. It then starts disposable HTTPS/WSS servers, Janus, TURN and signed Broka command and event workers. The Django fixture creates real session cookies for the three profiles. A successful run prints the browser version, `mediaPeers: 4`, the list of completed checks, and Django's `OK`. Four peers are the publisher and subscriber connections for each of the two audio participants. The denied guest has zero media peers.
+The browser command installs locked workspace packages, builds and typechecks the SDK and app, runs their test suites, and installs Playwright 1.57.0 with Chromium. It then starts disposable HTTPS/WSS servers, Janus, TURN and signed Broka command and event workers. The Django fixture creates real session cookies for the three profiles. A successful run prints the browser version, `mediaPeers: 4`, the list of completed checks, and Django's `OK`. Four peers are the publisher and subscriber connections for each of the two audio participants. The denied guest has zero media peers. The Django runner also checks the database connection on an early HTTP disconnect and exits after dropping its temporary PostgreSQL database.
 
 ## Repeat the failure and rollback checks
 
